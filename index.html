@@ -1,0 +1,2944 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Windows Installation Interactive Simulator | โปรแกรมจำลองการติดตั้ง Windows</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Noto Sans Thai"', '"Inter"', 'Segoe UI', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'Consolas', 'monospace'],
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Noto Sans Thai', 'Inter', 'Segoe UI', sans-serif;
+      background: #0b1120;
+      color: #e2e8f0;
+      margin: 0;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.4); }
+    ::-webkit-scrollbar-thumb { background: rgba(100, 116, 139, 0.5); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.8); }
+
+    /* BIOS Classic Font & Scanline Feel */
+    .bios-screen {
+      font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace;
+      background-color: #0000aa;
+      color: #ffffff;
+      user-select: none;
+    }
+    .bios-gray-bg { background-color: #c0c0c0; color: #000080; }
+    .bios-window-border {
+      border: 2px solid #ffffff;
+      box-shadow: inset 0 0 0 2px #0000aa, inset 0 0 0 3px #55ffff;
+    }
+
+    /* Windows Setup Purple Background */
+    .win-setup-bg {
+      background: radial-gradient(circle at 20% 20%, #4c1d95 0%, #2e1065 45%, #170633 100%);
+      font-family: 'Segoe UI', 'Noto Sans Thai', sans-serif;
+    }
+
+    /* Windows Classic Setup Window */
+    .win-dialog {
+      background: #f3f4f6;
+      color: #111827;
+      border: 1px solid #374151;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.65);
+    }
+    .win-btn {
+      background: linear-gradient(to bottom, #f9fafb, #e5e7eb);
+      border: 1px solid #9ca3af;
+      color: #111827;
+      transition: all 0.12s ease;
+    }
+    .win-btn:hover:not(:disabled) {
+      background: linear-gradient(to bottom, #eff6ff, #dbeafe);
+      border-color: #2563eb;
+    }
+    .win-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    .win-btn-primary {
+      background: linear-gradient(to bottom, #f0f7ff, #dbeafe);
+      border: 1.5px solid #0078d7;
+      color: #0f172a;
+      font-weight: 600;
+    }
+
+    /* Windows Spinner Dots */
+    @keyframes winSpin {
+      0% { transform: rotate(0deg); opacity: 1; }
+      75% { transform: rotate(360deg); opacity: 1; }
+      100% { transform: rotate(360deg); opacity: 0.2; }
+    }
+    .win-spinner {
+      position: relative;
+      width: 44px;
+      height: 44px;
+    }
+    .win-spinner span {
+      position: absolute;
+      width: 6px;
+      height: 6px;
+      background: #ffffff;
+      border-radius: 50%;
+      top: 0;
+      left: 19px;
+      transform-origin: 3px 22px;
+      animation: winSpin 2s cubic-bezier(0.4, 0.15, 0.6, 0.85) infinite;
+    }
+    .win-spinner span:nth-child(1) { animation-delay: 0s; }
+    .win-spinner span:nth-child(2) { animation-delay: 0.15s; }
+    .win-spinner span:nth-child(3) { animation-delay: 0.3s; }
+    .win-spinner span:nth-child(4) { animation-delay: 0.45s; }
+    .win-spinner span:nth-child(5) { animation-delay: 0.6s; }
+
+    /* OOBE Background */
+    .oobe-bg {
+      background: linear-gradient(135deg, #005a9e 0%, #0078d4 45%, #2b88d8 100%);
+    }
+    .oobe-light-bg {
+      background: radial-gradient(circle at top right, #e0f2fe 0%, #f8fafc 45%, #eff6ff 100%);
+    }
+
+    /* Desktop Wallpaper */
+    .win-desktop-bg {
+      background: radial-gradient(circle at 55% 45%, #38bdf8 0%, #0284c7 35%, #1e3a8a 75%, #0f172a 100%);
+    }
+
+    /* USB Dragging Animation */
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.6); }
+      50% { box-shadow: 0 0 0 10px rgba(56, 189, 248, 0); }
+    }
+    .usb-target-pulse {
+      animation: pulseGlow 1.6s infinite;
+    }
+
+    @keyframes blinkLed {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.25; }
+    }
+    .led-blink {
+      animation: blinkLed 0.8s infinite;
+    }
+
+    /* Smooth Fade */
+    .fade-in {
+      animation: fadeIn 0.28s ease-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body class="flex flex-col min-h-screen bg-slate-950 text-slate-100">
+
+  <!-- Top Navigation & Stage Progress Bar -->
+  <header class="bg-slate-900/95 border-b border-slate-800 sticky top-0 z-40 backdrop-blur">
+    <div class="max-w-7xl mx-auto px-4 py-2.5 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-sky-500 to-blue-700 flex items-center justify-center shadow-lg shadow-sky-900/40">
+          <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M3 5.5L10.5 4.4V11.5H3V5.5ZM11.5 4.25L21 2.85V11.5H11.5V4.25ZM3 12.5H10.5V19.6L3 18.5V12.5ZM11.5 12.5H21V21.15L11.5 19.75V12.5Z"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-sm sm:text-base font-bold text-white leading-tight">
+            Windows Installation Interactive Simulator
+          </h1>
+          <p class="text-xs text-slate-400">สื่อจำลองปฏิบัติการติดตั้งระบบปฏิบัติการ Windows (ปวช. / สายช่างคอมพิวเตอร์)</p>
+        </div>
+      </div>
+
+      <!-- Controls -->
+      <div class="flex items-center gap-2 text-xs">
+        <div class="hidden sm:flex items-center gap-3 px-3 py-1.5 rounded-lg bg-slate-800/80 border border-slate-700">
+          <span class="text-slate-400">เวลา: <strong id="timer-display" class="text-sky-400 font-mono">00:00</strong></span>
+          <span class="text-slate-600">|</span>
+          <span class="text-slate-400">แจ้งเตือนผิดพลาด: <strong id="mistake-display" class="text-amber-400 font-mono">0</strong></span>
+        </div>
+        <button onclick="toggleGuidePanel()" id="toggle-guide-btn" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 flex items-center gap-1.5 transition">
+          <span>📋</span><span class="hidden md:inline">แถบคำแนะนำ</span>
+        </button>
+        <button onclick="confirmReset()" class="px-3 py-1.5 rounded-lg bg-rose-950/60 hover:bg-rose-900/80 border border-rose-800/60 text-rose-200 flex items-center gap-1.5 transition">
+          <span>↺</span><span>รีเซ็ต</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 6-Stage Stepper -->
+    <div class="bg-slate-900/60 border-t border-slate-800/80">
+      <div class="max-w-7xl mx-auto px-4 py-2 overflow-x-auto">
+        <div id="stage-stepper" class="flex items-center justify-between min-w-[680px] gap-1"></div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Workspace -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 py-4 grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+
+    <!-- Left/Main Simulator Monitor Area -->
+    <section id="simulator-column" class="lg:col-span-8 xl:col-span-9 flex flex-col gap-3">
+      <!-- Feedback Banner (Validation Alerts) -->
+      <div id="feedback-banner" class="hidden rounded-xl border p-3.5 shadow-lg transition-all fade-in">
+        <div class="flex items-start gap-3">
+          <div id="feedback-icon" class="text-xl shrink-0 mt-0.5">⚠️</div>
+          <div class="flex-1 text-sm">
+            <div id="feedback-title" class="font-bold"></div>
+            <div id="feedback-message" class="mt-0.5 text-xs sm:text-sm opacity-95 leading-relaxed"></div>
+          </div>
+          <button onclick="hideFeedback()" class="text-xs opacity-70 hover:opacity-100 px-2 py-1 rounded">✕</button>
+        </div>
+      </div>
+
+      <!-- Monitor Frame -->
+      <div class="bg-slate-900 rounded-2xl p-2 sm:p-3 border border-slate-800 shadow-2xl">
+        <!-- Monitor Bezel Header -->
+        <div class="flex items-center justify-between px-2 pb-2 text-[11px] text-slate-400">
+          <div class="flex items-center gap-2">
+            <span id="monitor-led" class="w-2.5 h-2.5 rounded-full bg-slate-600 transition-colors"></span>
+            <span id="monitor-status-text" class="font-mono">DISPLAY: STANDBY (POWER OFF)</span>
+          </div>
+          <span class="font-mono text-slate-500">SIM-VM // 1920x1080</span>
+        </div>
+
+        <!-- Screen Viewport -->
+        <div id="screen-viewport" class="relative w-full min-h-[540px] lg:min-h-[580px] rounded-xl overflow-hidden bg-slate-950 border border-slate-800 flex flex-col">
+          <!-- Dynamic stage content rendered here -->
+        </div>
+      </div>
+    </section>
+
+    <!-- Right Instructor Guide Panel -->
+    <aside id="guide-panel" class="lg:col-span-4 xl:col-span-3 flex flex-col gap-3 sticky top-28">
+      <!-- Current Objective Card -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl">
+        <div class="flex items-center justify-between mb-2">
+          <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-sky-500/15 text-sky-400 border border-sky-500/30">
+            <span class="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></span>
+            Instructor Guide
+          </span>
+          <span id="guide-stage-badge" class="text-xs font-mono text-slate-400">Stage 1/6</span>
+        </div>
+
+        <h2 id="guide-title" class="text-base font-bold text-white mb-1.5">ภารกิจปัจจุบัน</h2>
+        <p id="guide-objective" class="text-sm text-slate-300 leading-relaxed bg-slate-800/60 border border-slate-700/60 rounded-xl p-3"></p>
+
+        <!-- Hint Toggle -->
+        <div class="mt-3">
+          <button onclick="toggleHint()" id="hint-btn" class="w-full py-2 px-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-semibold flex items-center justify-between transition">
+            <span class="flex items-center gap-2"><span>💡</span> เปิดดูคำใบ้และหลักการ (Hint)</span>
+            <span id="hint-arrow">▼</span>
+          </button>
+          <div id="hint-box" class="hidden mt-2 p-3 rounded-xl bg-amber-950/30 border border-amber-700/40 text-xs text-amber-100/90 leading-relaxed space-y-1.5 fade-in"></div>
+        </div>
+      </div>
+
+      <!-- Checklist for Current Stage -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2.5 flex items-center gap-1.5">
+          <span>✅</span> รายการตรวจสอบขั้นตอน (Checklist)
+        </h3>
+        <ul id="stage-checklist" class="space-y-2 text-xs"></ul>
+      </div>
+
+      <!-- Technical Log -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+            <span>📜</span> บันทึกการปฏิบัติงาน
+          </h3>
+          <span id="log-count" class="text-[11px] font-mono text-slate-500">0 รายการ</span>
+        </div>
+        <div id="activity-log" class="max-h-40 overflow-y-auto space-y-1.5 text-[11px] font-mono text-slate-300 pr-1">
+          <div class="text-slate-500 italic">รอเริ่มปฏิบัติงาน...</div>
+        </div>
+      </div>
+    </aside>
+
+  </main>
+
+  <!-- Modal Container (for BIOS Save, Disk Warnings, Summary, etc.) -->
+  <div id="modal-overlay" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div id="modal-content" class="max-w-lg w-full fade-in"></div>
+  </div>
+
+<script>
+// ============================================================================
+// STATE MANAGEMENT
+// ============================================================================
+const STAGES = [
+  { id: 1, title: '1. เตรียมฮาร์ดแวร์', short: 'Hardware' },
+  { id: 2, title: '2. ตั้งค่า BIOS', short: 'BIOS Setup' },
+  { id: 3, title: '3. Windows Setup', short: 'Setup Wizard' },
+  { id: 4, title: '4. แบ่งพาร์ทิชัน', short: 'Partitions' },
+  { id: 5, title: '5. ติดตั้งไฟล์ระบบ', short: 'Installing' },
+  { id: 6, title: '6. ตั้งค่า OOBE', short: 'OOBE & Desktop' },
+];
+
+const INITIAL_PARTITIONS = () => [
+  {
+    id: 1,
+    name: 'Drive 0 Partition 1: System Reserved',
+    sizeMB: 500,
+    freeMB: 145,
+    type: 'System',
+    formatted: true,
+    hasOldData: false,
+    letter: null,
+  },
+  {
+    id: 2,
+    name: 'Drive 0 Partition 2',
+    sizeMB: 200000, // ~195.3 GB
+    freeMB: 72500,  // ~70.8 GB free (used ~124.5 GB old Windows & files)
+    type: 'Primary',
+    formatted: false,
+    hasOldData: true,
+    oldDataNote: 'Windows เดิม + โปรแกรม',
+    letter: 'C',
+  },
+  {
+    id: 3,
+    name: 'Drive 0 Partition 3',
+    sizeMB: 311500, // ~304.2 GB
+    freeMB: 186000, // ~181.6 GB free (used ~122.6 GB user data)
+    type: 'Primary',
+    formatted: true,
+    hasOldData: true,
+    oldDataNote: 'ข้อมูลงานเดิม',
+    letter: 'D',
+  },
+];
+
+let state = {};
+let activeTimers = [];
+
+function clearAllTimers() {
+  activeTimers.forEach((t) => {
+    clearInterval(t);
+    clearTimeout(t);
+  });
+  activeTimers = [];
+}
+
+function initState() {
+  clearAllTimers();
+  state = {
+    stage: 1,
+    substep: 'hardware_ready',
+    startTime: Date.now(),
+    elapsedSec: 0,
+    mistakes: 0,
+    hintsUsed: 0,
+    hintOpen: false,
+    guideVisible: true,
+    logs: [],
+
+    // Stage 1: Hardware
+    caseView: 'front', // 'front' | 'rear'
+    usbInserted: false,
+    usbPortLocation: null, // 'front-1' | 'front-2' | 'rear-1' | 'rear-2'
+    powerOn: false,
+
+    // Stage 2: BIOS
+    postTimer: 9,
+    postMode: 'first_boot', // 'first_boot' | 'no_boot' | 'second_boot'
+    biosTab: 'Main', // 'Main' | 'Advanced' | 'Security' | 'Boot' | 'Exit'
+    biosSelectedIdx: 0,
+    bootOrder: [
+      { id: 'hdd', label: 'Hard Drive: WDC WD5000AAKX (500GB)' },
+      { id: 'usb', label: 'USB Flash Drive: Kingston Bootable 16GB' },
+      { id: 'odd', label: 'CD/DVD Drive: ASUS DRW-24D5MT' },
+      { id: 'pxe', label: 'Network: Realtek PXE IPv4' },
+    ],
+    biosSaved: false,
+
+    // Stage 3: Windows Setup
+    setupLang: 'English (United States)',
+    setupTimeCurrency: 'English (United States)',
+    setupKeyboard: 'US',
+    selectedEdition: 'Windows 11 Pro',
+    acceptedLicense: false,
+
+    // Stage 4: Partitions
+    partitions: INITIAL_PARTITIONS(),
+    selectedPartIdx: 1,
+    partActionMode: null, // null | 'new' | 'extend'
+    partInputMB: 200000,
+    systemReservedCreated: true,
+
+    // Stage 5: Installing
+    installPhase: 0, // 0..4
+    installPercent: 0,
+    restartCountdown: 10,
+
+    // Stage 6: OOBE
+    oobeRegion: 'Thailand',
+    oobeKeyboardPrimary: 'US',
+    oobeAddedThai: false,
+    oobeThaiLayout: 'Thai Kedmanee',
+    oobeUser: '',
+    oobePassword: '',
+    oobePasswordConfirm: '',
+    privacy: {
+      location: true,
+      findDevice: false,
+      diagnostics: false,
+      inking: false,
+      tailored: false,
+      ads: false,
+    },
+    desktopStartOpen: false,
+    desktopThisPcOpen: false,
+    summaryDismissed: false,
+  };
+}
+
+// ============================================================================
+// UTILITY & LOGGING
+// ============================================================================
+function addLog(msg, type = 'info') {
+  const now = new Date();
+  const ts = now.toTimeString().slice(0, 8);
+  state.logs.unshift({ ts, msg, type });
+  renderLog();
+}
+
+function showFeedback(title, message, type = 'warning') {
+  const banner = document.getElementById('feedback-banner');
+  const icon = document.getElementById('feedback-icon');
+  const tEl = document.getElementById('feedback-title');
+  const mEl = document.getElementById('feedback-message');
+
+  banner.classList.remove(
+    'hidden',
+    'bg-amber-950/90', 'border-amber-500/60', 'text-amber-100',
+    'bg-rose-950/90', 'border-rose-500/60', 'text-rose-100',
+    'bg-emerald-950/90', 'border-emerald-500/60', 'text-emerald-100',
+    'bg-sky-950/90', 'border-sky-500/60', 'text-sky-100'
+  );
+
+  if (type === 'error') {
+    banner.classList.add('bg-rose-950/90', 'border-rose-500/60', 'text-rose-100');
+    icon.textContent = '❌';
+    state.mistakes++;
+    document.getElementById('mistake-display').textContent = state.mistakes;
+    addLog(`[ผิดพลาด] ${title}`, 'error');
+  } else if (type === 'warning') {
+    banner.classList.add('bg-amber-950/90', 'border-amber-500/60', 'text-amber-100');
+    icon.textContent = '⚠️';
+    state.mistakes++;
+    document.getElementById('mistake-display').textContent = state.mistakes;
+    addLog(`[คำแนะนำ] ${title}`, 'warn');
+  } else if (type === 'success') {
+    banner.classList.add('bg-emerald-950/90', 'border-emerald-500/60', 'text-emerald-100');
+    icon.textContent = '✅';
+  } else {
+    banner.classList.add('bg-sky-950/90', 'border-sky-500/60', 'text-sky-100');
+    icon.textContent = 'ℹ️';
+  }
+
+  tEl.textContent = title;
+  mEl.innerHTML = message;
+  banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function hideFeedback() {
+  document.getElementById('feedback-banner').classList.add('hidden');
+}
+
+function formatMBtoGB(mb) {
+  return (mb / 1024).toFixed(1) + ' GB';
+}
+
+function formatNumber(n) {
+  return Number(n).toLocaleString('en-US');
+}
+
+function toggleGuidePanel() {
+  state.guideVisible = !state.guideVisible;
+  const panel = document.getElementById('guide-panel');
+  const simCol = document.getElementById('simulator-column');
+  if (state.guideVisible) {
+    panel.classList.remove('hidden');
+    simCol.className = 'lg:col-span-8 xl:col-span-9 flex flex-col gap-3';
+  } else {
+    panel.classList.add('hidden');
+    simCol.className = 'lg:col-span-12 flex flex-col gap-3';
+  }
+}
+
+function toggleHint() {
+  state.hintOpen = !state.hintOpen;
+  if (state.hintOpen) state.hintsUsed++;
+  renderGuide();
+}
+
+function showModal(html) {
+  const overlay = document.getElementById('modal-overlay');
+  document.getElementById('modal-content').innerHTML = html;
+  overlay.classList.remove('hidden');
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.add('hidden');
+}
+
+function confirmReset() {
+  showModal(`
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl p-6 shadow-2xl text-slate-100">
+      <h3 class="text-lg font-bold text-white flex items-center gap-2"><span>↺</span> ยืนยันการเริ่มแบบฝึกหัดใหม่</h3>
+      <p class="text-sm text-slate-300 mt-2">ความคืบหน้า พาร์ทิชันที่แบ่งไว้ และบันทึกการปฏิบัติงานทั้งหมดจะถูกรีเซ็ตกลับไปเริ่มต้นที่ Stage 1</p>
+      <div class="mt-5 flex justify-end gap-2">
+        <button onclick="closeModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-sm">ยกเลิก</button>
+        <button onclick="resetSimulation()" class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-sm font-semibold">รีเซ็ตใหม่ทั้งหมด</button>
+      </div>
+    </div>
+  `);
+}
+
+function resetSimulation() {
+  closeModal();
+  hideFeedback();
+  initState();
+  startClockTimer();
+  addLog('เริ่มการจำลองใหม่ (Stage 1: เตรียมฮาร์ดแวร์)');
+  renderAll();
+}
+
+function startClockTimer() {
+  const interval = setInterval(() => {
+    if (state.stage === 6 && state.substep === 'desktop') return;
+    state.elapsedSec = Math.floor((Date.now() - state.startTime) / 1000);
+    const m = String(Math.floor(state.elapsedSec / 60)).padStart(2, '0');
+    const s = String(state.elapsedSec % 60).padStart(2, '0');
+    const el = document.getElementById('timer-display');
+    if (el) el.textContent = `${m}:${s}`;
+  }, 1000);
+  activeTimers.push(interval);
+}
+
+// ============================================================================
+// GUIDE & CHECKLIST ENGINE
+// ============================================================================
+function getGuideData() {
+  const s = state.stage;
+  const sub = state.substep;
+
+  if (s === 1) {
+    if (!state.usbInserted) {
+      return {
+        objective: 'ลาก "Bootable USB Flash Drive" ไปเสียบเข้าที่พอร์ต USB ของเคสคอมพิวเตอร์ (หรือคลิกที่พอร์ต/แฟลชไดรฟ์)',
+        hints: [
+          'ก่อนเปิดเครื่องเพื่อติดตั้ง Windows เราต้องเสียบสื่อติดตั้ง (Bootable USB) ให้เรียบร้อยก่อน เพื่อให้ BIOS ตรวจพบอุปกรณ์ตั้งแต่เริ่มเปิดเครื่อง (POST)',
+          'แนะนำพอร์ต USB 3.0 (สีฟ้า) เพื่อความเร็วในการอ่านไฟล์ติดตั้ง หรือสลับดูด้านหลังเคส (Motherboard I/O) ก็ได้เช่นกัน',
+        ],
+        checklist: [
+          { done: state.usbInserted, text: 'เสียบ Bootable USB Flash Drive เข้าพอร์ต USB' },
+          { done: state.powerOn, text: 'กดปุ่ม Power เพื่อเปิดเครื่องคอมพิวเตอร์' },
+        ],
+      };
+    }
+    return {
+      objective: 'เสียบแฟลชไดรฟ์สำเร็จแล้ว! กดปุ่ม Power บนตัวเคสคอมพิวเตอร์เพื่อเปิดเครื่อง',
+      hints: [
+        'สังเกตไฟสถานะที่ USB Flash Drive ติดสว่างแล้ว ตอนนี้ให้กดปุ่ม Power ทรงกลมบนหน้าเคสเพื่อเข้าสู่กระบวนการ POST และ BIOS',
+      ],
+      checklist: [
+        { done: true, text: 'เสียบ Bootable USB Flash Drive เข้าพอร์ต USB' },
+        { done: state.powerOn, text: 'กดปุ่ม Power เพื่อเปิดเครื่องคอมพิวเตอร์' },
+      ],
+    };
+  }
+
+  if (s === 2) {
+    if (sub === 'post') {
+      return {
+        objective: 'รีบกดปุ่ม F2 หรือ DEL (บนคีย์บอร์ดหรือปุ่มบนหน้าจอ) ให้ทันเวลาเพื่อเข้าสู่หน้าจอ BIOS Setup Utility',
+        hints: [
+          'ช่วงหน้าจอสีดำ (POST - Power-On Self-Test) มีเวลาจำกัดเพียงไม่กี่วินาที หากกดไม่ทันเครื่องจะพยายามบูตจาก Hard Drive ที่ยังไม่มี OS และแจ้ง Error',
+          'สามารถกดปุ่ม F2 หรือ Delete บนคีย์บอร์ดจริง หรือคลิกปุ่มลัดด้านล่างหน้าจอก็ได้',
+        ],
+        checklist: [
+          { done: false, text: 'กดปุ่ม F2 / DEL เข้าสู่ BIOS Setup ให้ทันเวลา' },
+          { done: false, text: 'ปรับ Boot Priority ให้ USB Flash Drive อยู่อันดับ 1' },
+          { done: false, text: 'กด Save & Exit (F10)' },
+        ],
+      };
+    }
+    if (sub === 'no_boot') {
+      return {
+        objective: 'ไม่พบระบบปฏิบัติการให้บูต! กดปุ่ม Restart เพื่อลองเข้า BIOS ให้ทันเวลา หรือตรวจสอบลำดับการบูต',
+        hints: [
+          'ข้อความ "No Bootable Device Found" เกิดจากเข้า BIOS ไม่ทัน หรือลำดับ Boot Priority ยังไม่ได้ตั้งให้ USB Flash Drive เป็นลำดับที่ 1',
+        ],
+        checklist: [
+          { done: false, text: 'กดปุ่ม Restart เพื่อเริ่ม POST ใหม่' },
+          { done: false, text: 'เข้า BIOS Setup และตั้ง USB เป็น 1st Boot Device' },
+        ],
+      };
+    }
+    const usbIsFirst = state.bootOrder[0].id === 'usb';
+    return {
+      objective: usbIsFirst
+        ? 'USB Flash Drive อยู่ลำดับที่ 1 แล้ว! กด F10 (Save & Exit) เพื่อบันทึกค่าและรีสตาร์ทเข้าหน้าติดตั้ง Windows'
+        : 'ไปที่แท็บ Boot แล้วปรับลำดับ Boot Priority ให้ "USB Flash Drive" ขึ้นมาอยู่ลำดับที่ 1 (1st Boot Device)',
+      hints: [
+        'ใช้ปุ่มลูกศรซ้าย/ขวา (◀ ▶) หรือคลิกที่แท็บ "Boot" ด้านบน',
+        'เลือก "USB Flash Drive" แล้วกดปุ่ม + / Move Up ให้เลื่อนขึ้นไปอยู่อันดับที่ 1 (#1)',
+        'เมื่อเสร็จแล้วกด F10 (หรือไปที่แท็บ Exit -> Save Changes and Exit) และยืนยัน Yes',
+      ],
+      checklist: [
+        { done: true, text: 'เข้าสู่หน้าจอ BIOS Setup Utility' },
+        { done: state.biosTab === 'Boot' || usbIsFirst, text: 'เปิดแท็บ Boot เพื่อจัดการลำดับการบูต' },
+        { done: usbIsFirst, text: 'ปรับ USB Flash Drive เป็นลำดับที่ 1 (1st Boot)' },
+        { done: state.biosSaved, text: 'กด Save & Exit (F10)' },
+      ],
+    };
+  }
+
+  if (s === 3) {
+    const map = {
+      lang: {
+        obj: 'ตั้งค่า "Time and currency format" เป็น Thai (Thailand) จากนั้นกด Next',
+        hint: 'Language to install คงไว้เป็น English (United States) ส่วน Time and currency format ให้เลือก "Thai (Thailand)" เพื่อให้เวลา สกุลเงินบาท และรูปแบบวันที่ตรงกับประเทศไทย',
+      },
+      install_now: {
+        obj: 'คลิกปุ่ม "Install now" เพื่อเริ่มต้นตัวช่วยติดตั้ง Windows',
+        hint: 'ปุ่ม Install now อยู่กลางหน้าต่าง ส่วน Repair your computer ด้านล่างใช้สำหรับซ่อมแซมระบบเดิม',
+      },
+      product_key: {
+        obj: 'คลิก "I don\'t have a product key" เพื่อข้ามการใส่คีย์ในระหว่างติดตั้ง',
+        hint: 'ในการติดตั้ง Windows 10/11 สามารถข้ามขั้นตอนนี้ไปก่อนได้ และระบบจะ Activate อัตโนมัติเมื่อต่ออินเทอร์เน็ต (Digital License) หรือใส่คีย์ภายหลัง',
+      },
+      edition: {
+        obj: 'เลือกรุ่นของระบบปฏิบัติการ (เช่น Windows 11 Pro) แล้วกด Next',
+        hint: 'รุ่น Pro เหมาะสำหรับงานองค์กรและการเรียนสายช่าง เพราะมีฟีเจอร์ครบ เช่น BitLocker, Remote Desktop และ Group Policy',
+      },
+      license: {
+        obj: 'ติ๊กถูกที่ช่อง "I accept the license terms" แล้วกด Next',
+        hint: 'ต้องยอมรับข้อตกลงสิทธิ์การใช้งานซอฟต์แวร์ (EULA) ก่อนจึงจะสามารถกดปุ่ม Next ได้',
+      },
+      type: {
+        obj: 'เลือกประเภทการติดตั้งแบบ "Custom: Install Windows only (advanced)"',
+        hint: 'การลง Windows ใหม่จาก USB (Clean Install) ต้องเลือก Custom เสมอ เพื่อให้สามารถจัดการแบ่งพาร์ทิชันฮาร์ดดิสก์ได้',
+      },
+    };
+    const info = map[sub] || map.lang;
+    return {
+      objective: info.obj,
+      hints: [info.hint],
+      checklist: [
+        { done: ['install_now', 'product_key', 'edition', 'license', 'type'].includes(sub), text: '3.1 เลือก Time format: Thai (Thailand)' },
+        { done: ['product_key', 'edition', 'license', 'type'].includes(sub), text: '3.1 กดปุ่ม Install now' },
+        { done: ['edition', 'license', 'type'].includes(sub), text: '3.2 ข้าม Product Key' },
+        { done: ['license', 'type'].includes(sub), text: '3.3 เลือกเวอร์ชัน Windows' },
+        { done: ['type'].includes(sub), text: '3.4 ยอมรับ License Terms' },
+        { done: false, text: '3.5 เลือก Custom (advanced)' },
+      ],
+    };
+  }
+
+  if (s === 4) {
+    const primaries = state.partitions.filter((p) => p.type === 'Primary');
+    const firstPrimaryIdx = state.partitions.findIndex((p) => p.type === 'Primary');
+    const firstPrimary = firstPrimaryIdx !== -1 ? state.partitions[firstPrimaryIdx] : null;
+    const cFormatted = firstPrimary && firstPrimary.formatted && !firstPrimary.hasOldData;
+    const selectedIsFirstPrimary = firstPrimaryIdx !== -1 && state.selectedPartIdx === firstPrimaryIdx;
+    const secondPrimary = primaries[1] || null;
+    const dFormatted = secondPrimary && !secondPrimary.hasOldData;
+
+    return {
+      objective: 'ฮาร์ดดิสก์นี้แบ่งพาร์ทิชันและมีข้อมูลเดิมอยู่แล้ว ให้คลิกเลือกพาร์ทิชันหลักตัวแรก (Drive C:) แล้วกดปุ่ม "Format" เพื่อล้างข้อมูลเดิมออก (สามารถเลือก Format Drive D: หรือแบ่งใหม่ได้) จากนั้นเลือก Drive C: แล้วกด Next',
+      hints: [
+        'ในงานซ่อมบำรุงจริง เครื่องคอมพิวเตอร์มักมีการแบ่งพาร์ทิชัน Drive C: (ระบบเดิม) และ Drive D: (เก็บข้อมูล) ไว้อยู่แล้ว',
+        'ขั้นตอน: คลิกเลือก Drive 0 Partition 2 (C:) ที่ยังมีข้อมูลเดิม -> กดปุ่ม Format -> กด OK เพื่อล้าง Windows และข้อมูลเก่าออกให้ Free space กลับมาเต็มพื้นที่',
+        'สำหรับ Drive 0 Partition 3 (D:) สามารถกด Format เพื่อล้างข้อมูลทั้งหมด หรือปล่อยไว้เพื่อเก็บรักษาไฟล์ข้อมูลลูกค้าก็ได้',
+        'หากต้องการแบ่งขนาดใหม่ทั้งหมด สามารถกด Delete ลบพาร์ทิชันเดิมแล้วกด New แบ่งใหม่ได้เช่นกัน (1 GB = 1,024 MB)',
+        'สุดท้ายคลิกเลือก Primary Partition ตัวแรก (Drive C:) แล้วกด Next เพื่อเริ่มติดตั้ง',
+      ],
+      checklist: [
+        { done: primaries.length >= 2, text: 'มีพาร์ทิชันหลักอย่างน้อย 2 ไดรฟ์ (C: และ D:)' },
+        { done: !!cFormatted, text: 'กด Format พาร์ทิชัน Drive C: เพื่อล้างข้อมูลเดิม' },
+        { done: !!dFormatted, text: '(ทางเลือก) Format ข้อมูลเดิมใน Drive D: หรือเก็บข้อมูลไว้' },
+        { done: primaries.length >= 2 && !!cFormatted && selectedIsFirstPrimary, text: 'เลือก Primary Partition ตัวแรก (Drive C:) ก่อนกด Next' },
+      ],
+    };
+  }
+
+  if (s === 5) {
+    if (sub === 'installing') {
+      return {
+        objective: 'ระบบกำลังคัดลอกไฟล์และติดตั้ง Windows กรุณารอจนครบ 100%',
+        hints: ['ระหว่างขั้นตอน Getting files ready for installation ระบบจะแตกไฟล์ระบบลงใน Drive C: ที่เราเลือกไว้'],
+        checklist: [
+          { done: state.installPhase > 0, text: 'Copying Windows files' },
+          { done: state.installPhase > 1, text: 'Getting files ready (0-100%)' },
+          { done: state.installPhase > 2, text: 'Installing features' },
+          { done: state.installPhase > 3, text: 'Installing updates' },
+          { done: state.installPhase > 4, text: 'Finishing up' },
+        ],
+      };
+    }
+    return {
+      objective: 'ติดตั้งไฟล์ระบบเสร็จสมบูรณ์! ระบบกำลังเตรียมความพร้อมอุปกรณ์เพื่อเข้าสู่การตั้งค่า OOBE',
+      hints: ['ระบบกำลังบูตเข้า Windows จาก Hard Drive (Drive C:) เพื่อเริ่มตั้งค่าผู้ใช้ครั้งแรก'],
+      checklist: [
+        { done: true, text: 'ติดตั้งไฟล์ระบบครบ 100%' },
+        { done: true, text: 'กำลังเตรียมเข้าสู่หน้าตั้งค่า OOBE' },
+      ],
+    };
+  }
+
+  if (s === 6) {
+    const oobeMap = {
+      region: { obj: 'เลือกภูมิภาค (Region) เป็น "Thailand" แล้วกด Yes', hint: 'เลือก Thailand เพื่อให้โซนเวลา (UTC+07:00 Bangkok) และค่าท้องถิ่นถูกต้อง' },
+      kb_primary: { obj: 'เลือกรูปแบบแป้นพิมพ์หลักเป็น "US" แล้วกด Yes', hint: 'ควรตั้งแป้นพิมพ์หลักเป็น US (ภาษาอังกฤษ) เสมอ เพื่อความสะดวกเวลาพิมพ์รหัสผ่าน' },
+      kb_add_prompt: { obj: 'กดปุ่ม "Add layout" เพื่อเพิ่มแป้นพิมพ์ภาษาไทย', hint: 'หากกด Skip จะไม่มีภาษาไทยให้สลับใช้งานเมื่อเข้าหน้า Desktop (จะต้องไปเพิ่มใน Settings ทีหลัง)' },
+      kb_add_lang: { obj: 'เลือกภาษา "Thai (ไทย)" แล้วกด Next', hint: 'เลือกภาษาไทยเพื่อเพิ่มผังแป้นพิมพ์ไทย' },
+      kb_add_layout: { obj: 'เลือกรูปแบบแป้นพิมพ์ "Thai Kedmanee" แล้วกด Add layout', hint: 'แป้นพิมพ์เกษมณี (Thai Kedmanee) เป็นมาตรฐานแป้นพิมพ์ภาษาไทยที่ใช้งานทั่วไปในประเทศไทย' },
+      network: { obj: 'คลิก "I don\'t have internet" เพื่อข้ามการต่อเน็ตและสร้างบัญชี Local Account', hint: 'การตั้งค่าแบบ Offline ด้วย Local Account ช่วยให้ไม่ต้องล็อกอิน Microsoft Account และควบคุมชื่อ User บนเครื่องได้เอง' },
+      limited_setup: { obj: 'คลิก "Continue with limited setup" เพื่อยืนยันสร้างบัญชีแบบ Local', hint: 'Microsoft มักแนะนำให้ต่อเน็ต แต่สำหรับงานซ่อมบำรุง/ลงเครื่องใหม่ให้ลูกค้า ควรเลือก Continue with limited setup' },
+      account_user: { obj: 'ตั้งชื่อผู้ใช้งาน (Who\'s going to use this PC?) แล้วกด Next', hint: 'แนะนำให้ตั้งชื่อภาษาอังกฤษ เช่น Admin, User หรือชื่อตนเอง โดยไม่มีอักขระพิเศษ' },
+      account_pass: { obj: 'ตั้งรหัสผ่าน (Password) และยืนยันรหัสผ่านให้ตรงกัน', hint: 'ควรตั้งรหัสผ่านที่จำง่ายแต่ปลอดภัย เพื่อป้องกันผู้อื่นเข้าใช้งานเครื่อง' },
+      privacy: { obj: 'ปรับสวิตช์ตั้งค่าความเป็นส่วนตัว (Privacy Settings) ตามต้องการ แล้วกด Accept', hint: 'สามารถปิด Diagnostic data, Tailored experiences และ Advertising ID เพื่อลดการส่งข้อมูลและเพิ่มความเป็นส่วนตัวได้' },
+      desktop: { obj: 'ยินดีด้วย! คุณติดตั้ง Windows สำเร็จสมบูรณ์แล้ว ลองคลิกเปิด "This PC" หรือ Start Menu บน Desktop ได้เลย', hint: 'สามารถเปิดดูสรุปผล หรือคลิก "เริ่มทำแบบฝึกหัดใหม่" เพื่อทบทวนได้อีกครั้ง' },
+    };
+    const info = oobeMap[sub] || oobeMap.region;
+    return {
+      objective: info.obj,
+      hints: [info.hint],
+      checklist: [
+        { done: !['region'].includes(sub), text: '1. เลือกภูมิภาค: Thailand' },
+        { done: !['region', 'kb_primary', 'kb_add_prompt', 'kb_add_lang', 'kb_add_layout'].includes(sub), text: '2. แป้นพิมพ์: US + Thai Kedmanee' },
+        { done: !['region', 'kb_primary', 'kb_add_prompt', 'kb_add_lang', 'kb_add_layout', 'network', 'limited_setup'].includes(sub), text: '3. ข้ามเน็ต (Local Account)' },
+        { done: ['privacy', 'preparing', 'desktop'].includes(sub), text: '4. ตั้งชื่อผู้ใช้และรหัสผ่าน' },
+        { done: ['preparing', 'desktop'].includes(sub), text: '5. ตั้งค่า Privacy & เข้าสู่ Desktop' },
+      ],
+    };
+  }
+}
+
+function renderStepper() {
+  const el = document.getElementById('stage-stepper');
+  el.innerHTML = STAGES.map((st, i) => {
+    const isCurrent = state.stage === st.id;
+    const isDone = state.stage > st.id || (state.stage === 6 && state.substep === 'desktop' && st.id === 6);
+    let badgeClass = 'bg-slate-800 text-slate-400 border-slate-700';
+    if (isDone) badgeClass = 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40';
+    else if (isCurrent) badgeClass = 'bg-sky-500/20 text-sky-300 border-sky-400 ring-1 ring-sky-400/40';
+
+    return `
+      <div class="flex items-center flex-1 ${i < STAGES.length - 1 ? 'gap-1' : ''}">
+        <div class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-xs font-medium whitespace-nowrap transition ${badgeClass}">
+          <span class="w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${
+            isDone ? 'bg-emerald-500 text-slate-950' : isCurrent ? 'bg-sky-400 text-slate-950' : 'bg-slate-700 text-slate-300'
+          }">${isDone ? '✓' : st.id}</span>
+          <span>${st.title}</span>
+        </div>
+        ${i < STAGES.length - 1 ? `<div class="flex-1 h-0.5 min-w-[12px] ${isDone ? 'bg-emerald-500/50' : 'bg-slate-800'}"></div>` : ''}
+      </div>
+    `;
+  }).join('');
+}
+
+function renderGuide() {
+  const data = getGuideData();
+  document.getElementById('guide-stage-badge').textContent = `Stage ${state.stage}/6`;
+  document.getElementById('guide-objective').textContent = data.objective;
+
+  const hintBox = document.getElementById('hint-box');
+  const arrow = document.getElementById('hint-arrow');
+  if (state.hintOpen) {
+    hintBox.classList.remove('hidden');
+    hintBox.innerHTML = data.hints.map((h) => `<p class="flex gap-2"><span>•</span><span>${h}</span></p>`).join('');
+    arrow.textContent = '▲';
+  } else {
+    hintBox.classList.add('hidden');
+    arrow.textContent = '▼';
+  }
+
+  document.getElementById('stage-checklist').innerHTML = data.checklist
+    .map(
+      (c) => `
+    <li class="flex items-start gap-2 ${c.done ? 'text-emerald-300' : 'text-slate-300'}">
+      <span class="mt-0.5 w-4 h-4 rounded flex items-center justify-center text-[10px] shrink-0 ${
+        c.done ? 'bg-emerald-500/20 border border-emerald-500/50 text-emerald-300' : 'bg-slate-800 border border-slate-700 text-slate-500'
+      }">${c.done ? '✓' : ''}</span>
+      <span class="${c.done ? 'line-through opacity-80' : ''}">${c.text}</span>
+    </li>
+  `
+    )
+    .join('');
+}
+
+function renderLog() {
+  const el = document.getElementById('activity-log');
+  document.getElementById('log-count').textContent = `${state.logs.length} รายการ`;
+  if (!state.logs.length) {
+    el.innerHTML = '<div class="text-slate-500 italic">รอเริ่มปฏิบัติงาน...</div>';
+    return;
+  }
+  el.innerHTML = state.logs
+    .slice(0, 30)
+    .map((l) => {
+      const color =
+        l.type === 'error' ? 'text-rose-400' : l.type === 'warn' ? 'text-amber-300' : l.type === 'success' ? 'text-emerald-400' : 'text-slate-300';
+      return `<div class="${color}"><span class="text-slate-500">[${l.ts}]</span> ${l.msg}</div>`;
+    })
+    .join('');
+}
+
+function updateMonitorStatus() {
+  const led = document.getElementById('monitor-led');
+  const txt = document.getElementById('monitor-status-text');
+  if (state.stage === 1 && !state.powerOn) {
+    led.className = 'w-2.5 h-2.5 rounded-full bg-amber-500/70';
+    txt.textContent = 'DISPLAY: STANDBY (PC POWER OFF)';
+  } else {
+    led.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]';
+    const labels = {
+      1: 'DISPLAY: POWERING ON...',
+      2: 'DISPLAY: PRE-BOOT / BIOS UTILITY',
+      3: 'DISPLAY: WINDOWS SETUP WIZARD',
+      4: 'DISPLAY: WINDOWS DISK MANAGEMENT',
+      5: 'DISPLAY: INSTALLING WINDOWS',
+      6: state.substep === 'desktop' ? 'DISPLAY: WINDOWS DESKTOP' : 'DISPLAY: WINDOWS OOBE',
+    };
+    txt.textContent = labels[state.stage] || 'DISPLAY: ACTIVE';
+  }
+}
+
+function renderAll() {
+  renderStepper();
+  renderGuide();
+  renderLog();
+  updateMonitorStatus();
+  renderScreen();
+}
+
+// ============================================================================
+// STAGE 1: HARDWARE SETUP
+// ============================================================================
+function renderStage1(screen) {
+  const isFront = state.caseView === 'front';
+
+  const usbDriveHtml = !state.usbInserted
+    ? `
+    <div id="usb-draggable" draggable="true"
+         ondragstart="onUsbDragStart(event)"
+         onclick="quickInsertUsb()"
+         title="ลากไปเสียบที่พอร์ต USB หรือคลิกเพื่อเสียบ"
+         class="cursor-grab active:cursor-grabbing group bg-slate-800/90 hover:bg-slate-800 border-2 border-dashed border-sky-500/60 hover:border-sky-400 rounded-2xl p-4 flex flex-col items-center gap-2.5 transition shadow-xl max-w-[230px] select-none">
+      <div class="text-[11px] font-semibold text-sky-400 uppercase tracking-wider">Bootable Media</div>
+      <!-- USB SVG -->
+      <div class="relative flex items-center group-hover:scale-105 transition-transform">
+        <div class="w-8 h-9 bg-gradient-to-b from-slate-300 to-slate-400 rounded-l-sm border border-slate-500 flex flex-col justify-around p-1">
+          <div class="w-2.5 h-1.5 bg-slate-700 rounded-[1px] mx-auto"></div>
+          <div class="w-2.5 h-1.5 bg-slate-700 rounded-[1px] mx-auto"></div>
+        </div>
+        <div class="w-24 h-11 bg-gradient-to-r from-sky-600 to-blue-700 rounded-r-lg border border-sky-400/50 shadow-inner flex items-center justify-center px-2">
+          <div class="text-left">
+            <div class="text-[10px] font-bold text-white leading-none">WIN SETUP</div>
+            <div class="text-[9px] text-sky-200 mt-0.5">USB 3.0 • 16GB</div>
+          </div>
+        </div>
+      </div>
+      <div class="text-center text-xs text-slate-300">
+        <span class="font-semibold text-white">ลากไปเสียบที่พอร์ต USB</span><br/>
+        <span class="text-[11px] text-slate-400">(หรือคลิกที่นี่เพื่อเสียบอัตโนมัติ)</span>
+      </div>
+    </div>
+  `
+    : `
+    <div class="bg-emerald-950/40 border border-emerald-500/40 rounded-2xl p-4 text-center max-w-[230px]">
+      <div class="text-2xl mb-1">🔌</div>
+      <div class="text-xs font-bold text-emerald-300">เสียบ Bootable USB แล้ว</div>
+      <div class="text-[11px] text-slate-400 mt-1">พอร์ต: ${state.usbPortLocation}</div>
+      <button onclick="removeUsb()" class="mt-2.5 text-[11px] px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700">ถอด USB ออก</button>
+    </div>
+  `;
+
+  const renderPortSlot = (portId, label, isUsb3 = true) => {
+    const isPluggedHere = state.usbInserted && state.usbPortLocation === portId;
+    return `
+      <div data-port="${portId}"
+           ondragover="onPortDragOver(event)"
+           ondragleave="onPortDragLeave(event)"
+           ondrop="onPortDrop(event, '${portId}')"
+           onclick="onPortClick('${portId}')"
+           class="usb-drop-zone relative cursor-pointer group flex items-center gap-2 p-1.5 rounded-lg border transition ${
+             isPluggedHere
+               ? 'bg-emerald-950/60 border-emerald-400'
+               : !state.usbInserted
+               ? 'bg-slate-900/90 border-sky-500/50 hover:border-sky-300 usb-target-pulse'
+               : 'bg-slate-900/60 border-slate-700'
+           }">
+        <!-- USB Port Socket Graphic -->
+        <div class="w-10 h-4 bg-slate-950 border ${isUsb3 ? 'border-sky-500' : 'border-slate-500'} rounded-[2px] flex items-center justify-center p-0.5 relative overflow-hidden">
+          <div class="w-full h-1.5 ${isUsb3 ? 'bg-sky-500' : 'bg-slate-400'} rounded-[1px]"></div>
+        </div>
+        <span class="text-[10px] font-mono ${isPluggedHere ? 'text-emerald-300 font-bold' : 'text-slate-300'}">${label}</span>
+        ${
+          isPluggedHere
+            ? `<div class="ml-auto flex items-center gap-1.5 bg-sky-600 px-2 py-0.5 rounded text-[10px] font-bold text-white shadow">
+                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-300 led-blink"></span> USB
+               </div>`
+            : ''
+        }
+      </div>
+    `;
+  };
+
+  screen.innerHTML = `
+    <div class="flex-1 bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 p-4 sm:p-6 flex flex-col justify-between gap-4 fade-in">
+      <!-- Top Bar -->
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <span class="text-xs font-mono text-sky-400 uppercase tracking-wider">Workbench // Stage 1</span>
+          <h2 class="text-lg font-bold text-white">การเตรียมฮาร์ดแวร์และสื่อติดตั้ง (Hardware Setup)</h2>
+        </div>
+        <div class="inline-flex rounded-xl bg-slate-800 p-1 border border-slate-700 text-xs">
+          <button onclick="setCaseView('front')" class="px-3 py-1.5 rounded-lg font-medium transition ${isFront ? 'bg-sky-600 text-white shadow' : 'text-slate-300 hover:text-white'}">
+            🖥️ ด้านหน้าเคส (Front Panel)
+          </button>
+          <button onclick="setCaseView('rear')" class="px-3 py-1.5 rounded-lg font-medium transition ${!isFront ? 'bg-sky-600 text-white shadow' : 'text-slate-300 hover:text-white'}">
+            🔌 ด้านหลังเคส (Rear I/O)
+          </button>
+        </div>
+      </div>
+
+      <!-- Main Workbench Area -->
+      <div class="flex-1 grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+        <!-- PC Case Mockup -->
+        <div class="md:col-span-7 flex justify-center">
+          <div class="w-full max-w-[330px] bg-gradient-to-b from-slate-800 to-slate-900 rounded-2xl border-2 border-slate-700 shadow-2xl p-4 relative">
+            <div class="text-[10px] font-mono text-slate-400 uppercase tracking-widest mb-3 flex justify-between">
+              <span>${isFront ? 'ATX TOWER — FRONT PANEL' : 'ATX TOWER — REAR I/O PANEL'}</span>
+              <span class="text-sky-400">${isFront ? 'FRONT' : 'BACK'}</span>
+            </div>
+
+            ${
+              isFront
+                ? `
+              <!-- Front Panel View -->
+              <div class="space-y-4">
+                <!-- Optical Drive Bay -->
+                <div class="h-10 bg-slate-950/90 rounded-lg border border-slate-700 flex items-center justify-between px-3">
+                  <span class="text-[10px] font-mono text-slate-500">DVD-RW DRIVE</span>
+                  <div class="w-6 h-1.5 bg-slate-700 rounded"></div>
+                </div>
+
+                <!-- Front I/O Strip -->
+                <div class="bg-slate-950/80 rounded-xl border border-slate-700 p-3 space-y-2.5">
+                  <div class="text-[11px] font-semibold text-slate-300 flex items-center justify-between">
+                    <span>Front I/O Ports</span>
+                    <span class="text-[10px] text-sky-400">${!state.usbInserted ? '◀ วาง USB ที่นี่' : 'พร้อมใช้งาน'}</span>
+                  </div>
+                  ${renderPortSlot('Front USB 3.0 #1', 'USB 3.0 (Front #1)', true)}
+                  ${renderPortSlot('Front USB 3.0 #2', 'USB 3.0 (Front #2)', true)}
+                  <div class="flex items-center gap-3 pt-1">
+                    <div class="flex items-center gap-1.5 text-[10px] text-slate-400"><span class="w-3 h-3 rounded-full bg-emerald-600/40 border border-emerald-500"></span> Audio</div>
+                    <div class="flex items-center gap-1.5 text-[10px] text-slate-400"><span class="w-3 h-3 rounded-full bg-rose-600/40 border border-rose-500"></span> Mic</div>
+                  </div>
+                </div>
+
+                <!-- Mesh / Fan + Power Button -->
+                <div class="bg-slate-950/70 rounded-xl border border-slate-800 p-4 flex items-center justify-between">
+                  <div>
+                    <div class="text-xs font-semibold text-slate-300">ปุ่มเปิดเครื่อง (Power)</div>
+                    <div class="text-[11px] text-slate-400 mt-0.5">${state.usbInserted ? 'กดเพื่อบูตเครื่องได้เลย' : 'กรุณาเสียบ USB ก่อนเปิดเครื่อง'}</div>
+                  </div>
+                  <button onclick="pressPowerButton()" id="power-btn"
+                    class="w-16 h-16 rounded-full border-4 flex flex-col items-center justify-center transition-all shadow-lg ${
+                      state.usbInserted
+                        ? 'bg-emerald-600/20 hover:bg-emerald-500/30 border-emerald-400 text-emerald-300 shadow-emerald-500/30 cursor-pointer scale-105'
+                        : 'bg-slate-800 hover:bg-slate-700 border-slate-600 text-slate-400 cursor-pointer'
+                    }">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M5.636 5.636a9 9 0 1012.728 0M12 3v9" />
+                    </svg>
+                    <span class="text-[9px] font-bold mt-0.5">POWER</span>
+                  </button>
+                </div>
+              </div>
+            `
+                : `
+              <!-- Rear Panel View -->
+              <div class="space-y-3">
+                <div class="bg-slate-950/90 rounded-xl border border-slate-700 p-3 space-y-2">
+                  <div class="text-[11px] font-semibold text-slate-300">Motherboard Rear I/O</div>
+                  <div class="flex gap-2 text-[10px] font-mono text-slate-400 pb-1">
+                    <span class="px-2 py-1 rounded bg-slate-800 border border-slate-700">HDMI</span>
+                    <span class="px-2 py-1 rounded bg-slate-800 border border-slate-700">LAN (RJ45)</span>
+                  </div>
+                  ${renderPortSlot('Rear USB 3.0 #1', 'USB 3.0 (Rear #1)', true)}
+                  ${renderPortSlot('Rear USB 2.0 #2', 'USB 2.0 (Rear #2)', false)}
+                </div>
+
+                <!-- PSU Area -->
+                <div class="bg-slate-950/80 rounded-xl border border-slate-800 p-3 flex items-center justify-between">
+                  <div>
+                    <div class="text-xs font-semibold text-slate-300">Power Supply (PSU)</div>
+                    <div class="text-[10px] text-emerald-400">AC 220V Switch: ON (I)</div>
+                  </div>
+                  <button onclick="setCaseView('front')" class="px-2.5 py-1.5 rounded-lg bg-sky-600/20 hover:bg-sky-600/40 border border-sky-500/40 text-sky-300 text-xs">
+                    กลับไปกด Power หน้าเคส →
+                  </button>
+                </div>
+              </div>
+            `
+            }
+          </div>
+        </div>
+
+        <!-- Right Side: Bootable USB Flash Drive Tray -->
+        <div class="md:col-span-5 flex flex-col items-center justify-center gap-4">
+          ${usbDriveHtml}
+          <div class="bg-slate-900/70 border border-slate-800 rounded-xl p-3 text-xs text-slate-400 max-w-[250px] space-y-1">
+            <div class="font-semibold text-slate-200">📦 อุปกรณ์บนโต๊ะปฏิบัติการ:</div>
+            <p>• เคส PC (Hard Disk 500 GB ว่าง)</p>
+            <p>• Bootable USB Windows 10/11 (GPT/UEFI & Legacy Ready)</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function setCaseView(view) {
+  state.caseView = view;
+  renderScreen();
+}
+
+function onUsbDragStart(e) {
+  e.dataTransfer.setData('text/plain', 'bootable-usb');
+}
+
+function onPortDragOver(e) {
+  e.preventDefault();
+  e.currentTarget.classList.add('ring-2', 'ring-sky-400', 'bg-sky-900/40');
+}
+
+function onPortDragLeave(e) {
+  e.currentTarget.classList.remove('ring-2', 'ring-sky-400', 'bg-sky-900/40');
+}
+
+function onPortDrop(e, portId) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('ring-2', 'ring-sky-400', 'bg-sky-900/40');
+  insertUsbToPort(portId);
+}
+
+function onPortClick(portId) {
+  if (!state.usbInserted) {
+    insertUsbToPort(portId);
+  }
+}
+
+function quickInsertUsb() {
+  const defaultPort = state.caseView === 'front' ? 'Front USB 3.0 #1' : 'Rear USB 3.0 #1';
+  insertUsbToPort(defaultPort);
+}
+
+function insertUsbToPort(portId) {
+  state.usbInserted = true;
+  state.usbPortLocation = portId;
+  hideFeedback();
+  addLog(`เสียบ Bootable USB Flash Drive ที่ ${portId}`, 'success');
+  if (state.caseView === 'rear') {
+    showFeedback('เสียบ USB สำเร็จ!', 'เสียบแฟลชไดรฟ์เข้าพอร์ตด้านหลังแล้ว กรุณาสลับไป <strong>ด้านหน้าเคส (Front Panel)</strong> เพื่อกดปุ่ม Power เปิดเครื่อง', 'success');
+  }
+  renderAll();
+}
+
+function removeUsb() {
+  state.usbInserted = false;
+  state.usbPortLocation = null;
+  addLog('ถอด USB Flash Drive ออกจากพอร์ต');
+  renderAll();
+}
+
+function pressPowerButton() {
+  if (!state.usbInserted) {
+    showFeedback(
+      'ยังไม่ได้เสียบ Bootable USB Flash Drive!',
+      'หากเปิดเครื่องโดยที่ยังไม่มีสื่อติดตั้ง (Bootable USB) และฮาร์ดดิสก์ยังว่างเปล่า เครื่องจะไม่สามารถบูตเข้าหน้าติดตั้ง Windows ได้ กรุณาลากหรือคลิกเสียบ USB Flash Drive เข้าพอร์ตก่อนเปิดเครื่อง',
+      'warning'
+    );
+    return;
+  }
+  state.powerOn = true;
+  hideFeedback();
+  addLog('กดปุ่ม Power เปิดเครื่องคอมพิวเตอร์ -> เข้าสู่ POST Screen', 'success');
+  startStage2Post('first_boot');
+}
+
+// ============================================================================
+// STAGE 2: BIOS / PRE-BOOT ENVIRONMENT
+// ============================================================================
+function startStage2Post(mode = 'first_boot') {
+  clearAllTimers();
+  state.stage = 2;
+  state.substep = 'post';
+  state.postMode = mode;
+  state.postTimer = 9;
+  renderAll();
+
+  const iv = setInterval(() => {
+    state.postTimer--;
+    const timerEl = document.getElementById('post-countdown');
+    if (timerEl) timerEl.textContent = state.postTimer;
+
+    if (state.postTimer <= 0) {
+      clearInterval(iv);
+      if (mode === 'first_boot') {
+        // Missed BIOS key or boot priority wasn't set to USB
+        if (!state.biosSaved || state.bootOrder[0].id !== 'usb') {
+          state.substep = 'no_boot';
+          addLog('กดเข้า BIOS ไม่ทัน หรือ Boot Priority ยังไม่ใช่ USB -> No Bootable Device Found', 'error');
+          renderAll();
+        } else {
+          proceedFromBiosToSetup();
+        }
+      }
+    }
+  }, 1000);
+  activeTimers.push(iv);
+}
+
+function enterBiosFromPost() {
+  clearAllTimers();
+  state.substep = 'bios';
+  state.biosTab = 'Main';
+  state.biosSelectedIdx = 0;
+  hideFeedback();
+  addLog('เข้าสู่หน้าจอ BIOS Setup Utility สำเร็จ');
+  renderAll();
+}
+
+function renderStage2(screen) {
+  if (state.substep === 'post') {
+    screen.innerHTML = `
+      <div class="flex-1 bg-black text-slate-200 font-mono p-5 sm:p-8 flex flex-col justify-between fade-in select-none">
+        <div class="space-y-3 text-xs sm:text-sm">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+            <div>
+              <div class="text-sky-400 font-bold text-base">American Megatrends (AMI) BIOS v2.20</div>
+              <div class="text-slate-400 text-xs">Copyright (C) 2026 American Megatrends, Inc.</div>
+            </div>
+            <div class="px-2 py-1 border border-amber-500/60 text-amber-300 text-xs rounded">POST</div>
+          </div>
+
+          <div class="space-y-1 text-slate-300 pt-2">
+            <div>CPU : Intel(R) Core(TM) i5-12400 CPU @ 2.50GHz (6 Cores / 12 Threads)</div>
+            <div>Memory Test : 16384 MB DDR4-3200 OK</div>
+            <div class="pt-2 text-slate-400">Detecting Storage Devices...</div>
+            <div>&nbsp;&nbsp;SATA6G_1 : WDC WD5000AAKX-001CA0 (500.0 GB) [Empty / Unallocated]</div>
+            <div>&nbsp;&nbsp;SATA6G_2 : ASUS DRW-24D5MT ATAPI</div>
+            <div class="text-emerald-400">&nbsp;&nbsp;USB Mass Storage : Kingston Bootable 16GB [Detected at ${state.usbPortLocation}]</div>
+          </div>
+        </div>
+
+        <!-- Prompt & Countdown -->
+        <div class="space-y-4 pt-6 border-t border-slate-800">
+          <div class="bg-slate-900/90 border border-sky-500/40 rounded-xl p-4 flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <div class="text-white font-bold text-sm sm:text-base animate-pulse">
+                Press <span class="text-amber-300">&lt;F2&gt;</span> or <span class="text-amber-300">&lt;DEL&gt;</span> to enter BIOS Setup
+              </div>
+              <div class="text-xs text-slate-400 mt-1">
+                เหลือเวลาอีก <span id="post-countdown" class="text-rose-400 font-bold text-sm">${state.postTimer}</span> วินาที ก่อนระบบจะพยายามบูตจากอุปกรณ์ลำดับที่ 1
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <button onclick="enterBiosFromPost()" class="px-4 py-2.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs sm:text-sm shadow-lg shadow-sky-900/50 transition">
+                กดปุ่ม [F2 / DEL] เข้า BIOS
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  if (state.substep === 'no_boot') {
+    screen.innerHTML = `
+      <div class="flex-1 bg-black text-slate-200 font-mono p-6 sm:p-10 flex flex-col justify-between fade-in">
+        <div class="space-y-4">
+          <div class="text-rose-400 font-bold text-lg">PXE-E61: Media test failure, check cable</div>
+          <div class="bg-rose-950/40 border border-rose-500/50 rounded-xl p-5 space-y-2">
+            <div class="text-white font-bold text-base">No Bootable Device Found!</div>
+            <div class="text-amber-200 text-sm">Reboot and Select proper Boot device or Insert Boot Media in selected Boot device and press a key_</div>
+          </div>
+          <div class="text-xs sm:text-sm text-slate-400 leading-relaxed max-w-xl">
+            <strong class="text-slate-200">สาเหตุทางเทคนิค:</strong> คุณกดปุ่มเข้า BIOS ไม่ทันเวลา หรือลำดับการบูต (Boot Priority) ยังให้ Hard Drive ว่างเปล่าเป็นลำดับแรก ทำให้คอมพิวเตอร์หาไฟล์ระบบปฏิบัติการไม่เจอ
+          </div>
+        </div>
+
+        <div class="pt-4">
+          <button onclick="restartFromNoBoot()" class="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm flex items-center gap-2 transition">
+            <span>🔄</span> Restart เพื่อลองเข้า BIOS ใหม่
+          </button>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  // BIOS SETUP UTILITY SCREEN
+  const tabs = ['Main', 'Advanced', 'Security', 'Boot', 'Exit'];
+  const tabContent = renderBiosTabContent();
+
+  screen.innerHTML = `
+    <div class="flex-1 bios-screen flex flex-col justify-between text-xs sm:text-sm fade-in">
+      <!-- BIOS Header -->
+      <div>
+        <div class="bios-gray-bg text-center py-1.5 font-bold tracking-wide border-b-2 border-white">
+          Aptio Setup Utility - Copyright (C) 2026 American Megatrends, Inc.
+        </div>
+
+        <!-- Tabs Bar -->
+        <div class="bg-[#000080] flex flex-wrap border-b-2 border-[#55ffff] px-2 pt-1 gap-1">
+          ${tabs
+            .map(
+              (t) => `
+            <button onclick="selectBiosTab('${t}')"
+              class="px-4 py-1.5 font-bold transition cursor-pointer ${
+                state.biosTab === t ? 'bg-[#c0c0c0] text-[#0000aa]' : 'text-[#c0c0c0] hover:text-white'
+              }">
+              ${t}
+            </button>
+          `
+            )
+            .join('')}
+        </div>
+      </div>
+
+      <!-- BIOS Body (2 Columns) -->
+      <div class="flex-1 grid grid-cols-1 md:grid-cols-12 p-3 gap-3 bg-[#0000aa]">
+        <!-- Left Main Panel -->
+        <div class="md:col-span-8 border-2 border-[#55ffff] p-3 flex flex-col justify-between bg-[#0000aa]">
+          ${tabContent}
+        </div>
+
+        <!-- Right Help & Controls Panel -->
+        <div class="md:col-span-4 border-2 border-[#55ffff] p-3 flex flex-col justify-between text-[#55ffff] bg-[#0000aa]">
+          <div class="space-y-2">
+            <div class="text-white font-bold border-b border-[#55ffff]/40 pb-1">Item Specific Help</div>
+            <p class="text-xs leading-relaxed text-[#e2e8f0]">
+              ${
+                state.biosTab === 'Boot'
+                  ? 'กำหนดลำดับอุปกรณ์ที่จะใช้อ่านระบบปฏิบัติการ (Boot Priority)<br><br>ให้เลื่อน <strong>USB Flash Drive</strong> ขึ้นไปอยู่อันดับที่ <strong>#1</strong> แล้วกด <strong>F10</strong> เพื่อบันทึก'
+                  : state.biosTab === 'Exit'
+                  ? 'เลือก <strong>Save Changes and Exit</strong> หรือกด F10 เพื่อบันทึกการตั้งค่าและรีสตาร์ท'
+                  : 'ใช้ปุ่มลูกศร ◀ ▶ หรือคลิกที่แท็บ <strong>Boot</strong> ด้านบนเพื่อปรับลำดับ Boot Priority'
+              }
+            </p>
+          </div>
+
+          <div class="border-t border-[#55ffff]/40 pt-3 mt-3 space-y-1 text-[11px] text-white">
+            <div class="text-[#ffff55] font-bold mb-1">Keyboard / Mouse Controls:</div>
+            <div>← → : Select Screen (เลือกแท็บ)</div>
+            <div>↑ ↓ : Select Item (เลือกรายการ)</div>
+            <div>+ / - : Change Boot Order (เลื่อนลำดับ)</div>
+            <div>F10 : Save and Exit (บันทึกและออก)</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BIOS Footer Action Bar -->
+      <div class="bios-gray-bg px-3 py-2 flex flex-wrap items-center justify-between gap-2 border-t-2 border-white text-xs">
+        <div class="font-bold text-[#000080]">Version 2.20.1271 | Legacy/UEFI Dual Mode</div>
+        <div class="flex items-center gap-2">
+          ${
+            state.biosTab !== 'Boot'
+              ? `<button onclick="selectBiosTab('Boot')" class="px-3 py-1 bg-[#0000aa] text-white font-bold hover:bg-blue-800 border border-white cursor-pointer">ไปที่แท็บ Boot →</button>`
+              : ''
+          }
+          <button onclick="openBiosSaveModal()" class="px-3 py-1 bg-emerald-700 hover:bg-emerald-600 text-white font-bold border border-white cursor-pointer">
+            [F10] Save & Exit
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderBiosTabContent() {
+  if (state.biosTab === 'Main') {
+    return `
+      <div class="space-y-2 text-xs sm:text-sm">
+        <div class="text-[#ffff55] font-bold mb-2">System Information</div>
+        <div class="grid grid-cols-2 gap-y-1.5">
+          <span class="text-[#aaaaaa]">BIOS Version</span><span>2.20 (11/15/2026)</span>
+          <span class="text-[#aaaaaa]">Processor Type</span><span>Intel(R) Core(TM) i5-12400</span>
+          <span class="text-[#aaaaaa]">Total Memory</span><span>16384 MB (DDR4)</span>
+          <span class="text-[#aaaaaa]">SATA Port 1</span><span>WDC WD5000AAKX (500.0 GB)</span>
+          <span class="text-[#aaaaaa]">USB Device</span><span class="text-[#55ff55]">Kingston Bootable 16GB</span>
+        </div>
+        <div class="mt-4 pt-3 border-t border-[#55ffff]/30 text-[#55ffff] text-xs">
+          หมายเหตุ: คลิกแท็บ <strong>Boot</strong> ด้านบน (หรือกดลูกศรขวา) เพื่อตั้งค่าลำดับการบูต
+        </div>
+      </div>
+    `;
+  }
+  if (state.biosTab === 'Advanced' || state.biosTab === 'Security') {
+    return `
+      <div class="space-y-2 text-xs sm:text-sm">
+        <div class="text-[#ffff55] font-bold mb-2">${state.biosTab} Configuration</div>
+        <div class="flex justify-between py-1"><span>USB Legacy Support</span><span class="text-[#55ff55]">[Enabled]</span></div>
+        <div class="flex justify-between py-1"><span>AHCI SATA Mode</span><span class="text-[#55ff55]">[AHCI]</span></div>
+        <div class="flex justify-between py-1"><span>TPM 2.0 Device</span><span class="text-[#55ff55]">[Enabled]</span></div>
+        <div class="flex justify-between py-1"><span>Secure Boot State</span><span class="text-[#aaaaaa]">[Disabled (Lab Mode)]</span></div>
+      </div>
+    `;
+  }
+  if (state.biosTab === 'Boot') {
+    return `
+      <div class="space-y-3">
+        <div class="text-[#ffff55] font-bold">Boot Option Priorities</div>
+        <div class="text-[11px] text-[#aaaaaa]">ปรับให้ USB Flash Drive ขึ้นมาอยู่ Boot Option #1 (ใช้ปุ่ม ⬆ ⬇ หรือคีย์บอร์ด +/-)</div>
+        <div class="space-y-1.5 mt-2">
+          ${state.bootOrder
+            .map((item, idx) => {
+              const selected = state.biosSelectedIdx === idx;
+              const isUsb = item.id === 'usb';
+              return `
+                <div onclick="selectBiosItem(${idx})"
+                  class="flex items-center justify-between gap-2 px-2.5 py-1.5 cursor-pointer border ${
+                    selected ? 'bg-[#00aaaa] text-black font-bold border-white' : 'border-transparent hover:border-[#55ffff]/40 text-white'
+                  }">
+                  <div class="flex items-center gap-2 truncate">
+                    <span class="text-xs w-28 shrink-0 ${selected ? 'text-black' : 'text-[#aaaaaa]'}">Boot Option #${idx + 1}</span>
+                    <span class="truncate ${!selected && isUsb ? 'text-[#55ff55]' : ''}">[${item.label}]</span>
+                  </div>
+                  <div class="flex items-center gap-1 shrink-0">
+                    <button onclick="event.stopPropagation(); moveBootItem(${idx}, -1)" ${idx === 0 ? 'disabled' : ''}
+                      class="px-2 py-0.5 text-[11px] bg-[#000080] text-white border border-white disabled:opacity-30 hover:bg-blue-700">▲ +</button>
+                    <button onclick="event.stopPropagation(); moveBootItem(${idx}, 1)" ${idx === state.bootOrder.length - 1 ? 'disabled' : ''}
+                      class="px-2 py-0.5 text-[11px] bg-[#000080] text-white border border-white disabled:opacity-30 hover:bg-blue-700">▼ -</button>
+                  </div>
+                </div>
+              `;
+            })
+            .join('')}
+        </div>
+        ${
+          state.bootOrder[0].id === 'usb'
+            ? `<div class="mt-3 p-2 bg-[#005500] border border-[#55ff55] text-[#55ff55] text-xs font-bold">
+                 ✓ Boot Option #1 คือ USB Flash Drive แล้ว! กด [F10] Save & Exit ได้เลย
+               </div>`
+            : ''
+        }
+      </div>
+    `;
+  }
+  if (state.biosTab === 'Exit') {
+    return `
+      <div class="space-y-2">
+        <div class="text-[#ffff55] font-bold mb-2">Save & Exit Options</div>
+        <button onclick="openBiosSaveModal()" class="w-full text-left px-3 py-2 bg-[#00aaaa] text-black font-bold border border-white hover:opacity-90 cursor-pointer">
+          ▸ Save Changes and Exit (F10)
+        </button>
+        <button onclick="discardBiosAndExit()" class="w-full text-left px-3 py-2 text-[#c0c0c0] hover:bg-[#000080] border border-transparent hover:border-white cursor-pointer">
+          ▸ Discard Changes and Exit
+        </button>
+      </div>
+    `;
+  }
+}
+
+function selectBiosTab(tab) {
+  state.biosTab = tab;
+  state.biosSelectedIdx = 0;
+  renderAll();
+}
+
+function selectBiosItem(idx) {
+  state.biosSelectedIdx = idx;
+  renderScreen();
+}
+
+function moveBootItem(idx, dir) {
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= state.bootOrder.length) return;
+  const arr = [...state.bootOrder];
+  const temp = arr[idx];
+  arr[idx] = arr[newIdx];
+  arr[newIdx] = temp;
+  state.bootOrder = arr;
+  state.biosSelectedIdx = newIdx;
+  addLog(`ย้ายลำดับ Boot: ${temp.label} -> #${newIdx + 1}`);
+  renderAll();
+}
+
+function openBiosSaveModal() {
+  showModal(`
+    <div class="bios-screen border-4 border-white p-5 shadow-2xl text-sm">
+      <div class="text-[#ffff55] font-bold text-base text-center border-b border-[#55ffff] pb-2 mb-3">
+        Save & Reset
+      </div>
+      <p class="text-center text-white mb-5">Save configuration and exit?</p>
+      <div class="flex justify-center gap-4">
+        <button onclick="confirmBiosSave()" class="px-6 py-1.5 bg-[#00aaaa] text-black font-bold border-2 border-white hover:bg-[#55ffff] cursor-pointer">Yes</button>
+        <button onclick="closeModal()" class="px-6 py-1.5 bg-[#000080] text-white font-bold border-2 border-[#aaaaaa] hover:border-white cursor-pointer">No</button>
+      </div>
+    </div>
+  `);
+}
+
+function confirmBiosSave() {
+  closeModal();
+  state.biosSaved = true;
+  if (state.bootOrder[0].id !== 'usb') {
+    showFeedback(
+      'ยังไม่ได้ตั้ง USB Flash Drive เป็นลำดับที่ 1!',
+      'คุณกดบันทึก BIOS โดยที่ Boot Option #1 ยังเป็น <strong>' +
+        state.bootOrder[0].label +
+        '</strong> ทำให้เครื่องไม่พบบูตไฟล์จาก USB กรุณากด Restart แล้วปรับ USB ขึ้นลำดับ #1 ในแท็บ Boot',
+      'error'
+    );
+    state.substep = 'no_boot';
+    renderAll();
+    return;
+  }
+  addLog('บันทึก BIOS (Boot #1: USB Flash Drive) และรีสตาร์ทเครื่อง', 'success');
+  proceedFromBiosToSetup();
+}
+
+function discardBiosAndExit() {
+  showFeedback(
+    'คุณเลือกยกเลิกการบันทึก (Discard Changes)',
+    'หากไม่บันทึกค่า Boot Priority เครื่องจะกลับไปบูตจาก Hard Drive ที่ยังว่างอยู่เหมือนเดิม',
+    'warning'
+  );
+  state.substep = 'no_boot';
+  renderAll();
+}
+
+function restartFromNoBoot() {
+  hideFeedback();
+  startStage2Post('first_boot');
+}
+
+function proceedFromBiosToSetup() {
+  const screen = document.getElementById('screen-viewport');
+  screen.innerHTML = `
+    <div class="flex-1 bg-black flex flex-col items-center justify-center gap-6 text-white fade-in">
+      <div class="w-16 h-16 text-sky-400">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5.5L10.5 4.4V11.5H3V5.5ZM11.5 4.25L21 2.85V11.5H11.5V4.25ZM3 12.5H10.5V19.6L3 18.5V12.5ZM11.5 12.5H21V21.15L11.5 19.75V12.5Z"/></svg>
+      </div>
+      <div class="win-spinner"><span></span><span></span><span></span><span></span><span></span></div>
+      <div class="text-sm font-mono text-slate-300">Booting from USB Flash Drive... Loading Setup Files</div>
+    </div>
+  `;
+  const t = setTimeout(() => {
+    state.stage = 3;
+    state.substep = 'lang';
+    addLog('บูตจาก USB สำเร็จ -> เข้าสู่หน้าจอ Windows Setup', 'success');
+    renderAll();
+  }, 1500);
+  activeTimers.push(t);
+}
+
+// ============================================================================
+// STAGE 3: WINDOWS SETUP WIZARD
+// ============================================================================
+function renderStage3(screen) {
+  let bodyHtml = '';
+
+  if (state.substep === 'lang') {
+    bodyHtml = `
+      <div class="win-dialog w-full max-w-[540px] rounded-sm overflow-hidden fade-in">
+        <div class="bg-white px-4 py-2 border-b border-gray-300 flex items-center justify-between text-xs text-gray-700">
+          <div class="flex items-center gap-2 font-semibold">
+            <span class="text-blue-600">❖</span> Windows Setup
+          </div>
+          <span class="text-gray-400">✕</span>
+        </div>
+        <div class="p-6 sm:p-8 bg-gradient-to-b from-[#3c1053] via-[#4c1d95] to-[#2e1065] text-white">
+          <div class="flex items-center gap-3 mb-6">
+            <svg class="w-8 h-8 text-sky-300" viewBox="0 0 24 24" fill="currentColor"><path d="M3 5.5L10.5 4.4V11.5H3V5.5ZM11.5 4.25L21 2.85V11.5H11.5V4.25ZM3 12.5H10.5V19.6L3 18.5V12.5ZM11.5 12.5H21V21.15L11.5 19.75V12.5Z"/></svg>
+            <span class="text-2xl font-light tracking-wide">Windows</span>
+          </div>
+
+          <div class="space-y-4 text-xs sm:text-sm">
+            <div class="grid grid-cols-1 sm:grid-cols-12 items-center gap-2">
+              <label class="sm:col-span-5">Language to install:</label>
+              <select onchange="state.setupLang=this.value" class="sm:col-span-7 bg-white text-gray-900 px-2.5 py-1.5 rounded-sm border border-gray-400">
+                <option value="English (United States)" ${state.setupLang === 'English (United States)' ? 'selected' : ''}>English (United States)</option>
+                <option value="English (United Kingdom)" ${state.setupLang === 'English (United Kingdom)' ? 'selected' : ''}>English (United Kingdom)</option>
+              </select>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-12 items-center gap-2">
+              <label class="sm:col-span-5 font-semibold text-amber-200">Time and currency format:</label>
+              <select onchange="state.setupTimeCurrency=this.value" class="sm:col-span-7 bg-white text-gray-900 px-2.5 py-1.5 rounded-sm border-2 border-sky-400 font-medium">
+                <option value="English (United States)" ${state.setupTimeCurrency === 'English (United States)' ? 'selected' : ''}>English (United States)</option>
+                <option value="Thai (Thailand)" ${state.setupTimeCurrency === 'Thai (Thailand)' ? 'selected' : ''}>Thai (Thailand)</option>
+                <option value="Japanese (Japan)" ${state.setupTimeCurrency === 'Japanese (Japan)' ? 'selected' : ''}>Japanese (Japan)</option>
+              </select>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-12 items-center gap-2">
+              <label class="sm:col-span-5">Keyboard or input method:</label>
+              <select onchange="state.setupKeyboard=this.value" class="sm:col-span-7 bg-white text-gray-900 px-2.5 py-1.5 rounded-sm border border-gray-400">
+                <option value="US" ${state.setupKeyboard === 'US' ? 'selected' : ''}>US</option>
+                <option value="Thai Kedmanee" ${state.setupKeyboard === 'Thai Kedmanee' ? 'selected' : ''}>Thai Kedmanee</option>
+              </select>
+            </div>
+
+            <p class="text-[11px] text-purple-200/80 pt-2">Enter your language and other preferences and click "Next" to continue.</p>
+          </div>
+        </div>
+        <div class="bg-[#f3f4f6] px-6 py-3 border-t border-gray-300 flex justify-end">
+          <button onclick="submitSetupLang()" class="win-btn win-btn-primary px-6 py-1.5 text-sm rounded-sm cursor-pointer">Next</button>
+        </div>
+      </div>
+    `;
+  } else if (state.substep === 'install_now') {
+    bodyHtml = `
+      <div class="win-dialog w-full max-w-[540px] rounded-sm overflow-hidden fade-in">
+        <div class="bg-white px-4 py-2 border-b border-gray-300 flex items-center justify-between text-xs text-gray-700">
+          <div class="flex items-center gap-2 font-semibold"><span class="text-blue-600">❖</span> Windows Setup</div>
+          <span class="text-gray-400">✕</span>
+        </div>
+        <div class="p-10 bg-gradient-to-b from-[#3c1053] via-[#4c1d95] to-[#2e1065] text-white flex flex-col items-center justify-center min-h-[300px] relative">
+          <div class="flex items-center gap-3 mb-8">
+            <svg class="w-10 h-10 text-sky-300" viewBox="0 0 24 24" fill="currentColor"><path d="M3 5.5L10.5 4.4V11.5H3V5.5ZM11.5 4.25L21 2.85V11.5H11.5V4.25ZM3 12.5H10.5V19.6L3 18.5V12.5ZM11.5 12.5H21V21.15L11.5 19.75V12.5Z"/></svg>
+            <span class="text-3xl font-light">Windows</span>
+          </div>
+          <button onclick="goSetupStep('product_key', 'คลิก Install now')" class="win-btn px-10 py-2.5 text-base font-semibold rounded-sm shadow-lg cursor-pointer">
+            Install now
+          </button>
+          <button onclick="showRepairWarning()" class="absolute left-6 bottom-5 text-xs text-sky-300 hover:underline cursor-pointer">
+            Repair your computer
+          </button>
+        </div>
+      </div>
+    `;
+  } else if (state.substep === 'product_key') {
+    bodyHtml = `
+      <div class="win-dialog w-full max-w-[580px] rounded-sm overflow-hidden fade-in">
+        <div class="bg-white px-4 py-2 border-b border-gray-300 flex items-center justify-between text-xs text-gray-700">
+          <div class="flex items-center gap-2 font-semibold"><span class="text-blue-600">❖</span> Windows Setup</div>
+          <span class="text-gray-400">✕</span>
+        </div>
+        <div class="p-6 sm:p-8 bg-white text-gray-800 min-h-[290px] flex flex-col justify-between">
+          <div>
+            <h3 class="text-xl text-[#003399] font-normal mb-2">Activate Windows</h3>
+            <p class="text-xs sm:text-sm text-gray-600 mb-5">If this is the first time you're installing Windows on this PC, you need to enter a valid Windows product key.</p>
+            <div class="max-w-sm">
+              <label class="text-xs font-semibold text-gray-700 block mb-1">Product key</label>
+              <input id="prod-key-input" type="text" placeholder="XXXXX-XXXXX-XXXXX-XXXXX-XXXXX"
+                class="w-full px-3 py-1.5 border border-gray-400 text-sm font-mono focus:outline-none focus:border-blue-600" />
+            </div>
+          </div>
+          <p class="text-[11px] text-gray-500 mt-4">If you're reinstalling Windows, select "I don't have a product key". Your copy of Windows will be automatically activated later.</p>
+        </div>
+        <div class="bg-[#f3f4f6] px-6 py-3 border-t border-gray-300 flex items-center justify-between">
+          <button onclick="skipProductKey()" class="text-xs sm:text-sm text-[#0066cc] hover:underline font-medium cursor-pointer">
+            I don't have a product key
+          </button>
+          <button onclick="checkProductKeyNext()" class="win-btn px-6 py-1.5 text-sm rounded-sm cursor-pointer">Next</button>
+        </div>
+      </div>
+    `;
+  } else if (state.substep === 'edition') {
+    const editions = [
+      { name: 'Windows 11 Home', arch: 'x64', date: '11/15/2026' },
+      { name: 'Windows 11 Home Single Language', arch: 'x64', date: '11/15/2026' },
+      { name: 'Windows 11 Education', arch: 'x64', date: '11/15/2026' },
+      { name: 'Windows 11 Pro', arch: 'x64', date: '11/15/2026' },
+    ];
+    bodyHtml = `
+      <div class="win-dialog w-full max-w-[580px] rounded-sm overflow-hidden fade-in">
+        <div class="bg-white px-4 py-2 border-b border-gray-300 flex items-center justify-between text-xs text-gray-700">
+          <div class="flex items-center gap-2 font-semibold"><span class="text-blue-600">❖</span> Windows Setup</div>
+          <span class="text-gray-400">✕</span>
+        </div>
+        <div class="p-6 bg-white text-gray-800 min-h-[290px]">
+          <h3 class="text-xl text-[#003399] font-normal mb-3">Select the operating system you want to install</h3>
+          <div class="border border-gray-400 bg-white">
+            <div class="grid grid-cols-12 bg-gray-100 border-b border-gray-300 text-xs font-semibold text-gray-700 px-3 py-1.5">
+              <div class="col-span-7">Operating system</div>
+              <div class="col-span-2">Arch</div>
+              <div class="col-span-3">Date modified</div>
+            </div>
+            ${editions
+              .map(
+                (ed) => `
+              <div onclick="state.selectedEdition='${ed.name}'; renderScreen();"
+                class="grid grid-cols-12 px-3 py-2 text-xs sm:text-sm cursor-pointer border-b border-gray-100 ${
+                  state.selectedEdition === ed.name ? 'bg-[#0078d7] text-white font-medium' : 'hover:bg-blue-50 text-gray-800'
+                }">
+                <div class="col-span-7">${ed.name}</div>
+                <div class="col-span-2">${ed.arch}</div>
+                <div class="col-span-3">${ed.date}</div>
+              </div>
+            `
+              )
+              .join('')}
+          </div>
+          <p class="text-xs text-gray-500 mt-3">รุ่นที่เลือก: <strong>${state.selectedEdition}</strong></p>
+        </div>
+        <div class="bg-[#f3f4f6] px-6 py-3 border-t border-gray-300 flex justify-end">
+          <button onclick="goSetupStep('license', 'เลือกเวอร์ชัน ${state.selectedEdition}')" class="win-btn win-btn-primary px-6 py-1.5 text-sm rounded-sm cursor-pointer">Next</button>
+        </div>
+      </div>
+    `;
+  } else if (state.substep === 'license') {
+    bodyHtml = `
+      <div class="win-dialog w-full max-w-[580px] rounded-sm overflow-hidden fade-in">
+        <div class="bg-white px-4 py-2 border-b border-gray-300 flex items-center justify-between text-xs text-gray-700">
+          <div class="flex items-center gap-2 font-semibold"><span class="text-blue-600">❖</span> Windows Setup</div>
+          <span class="text-gray-400">✕</span>
+        </div>
+        <div class="p-6 bg-white text-gray-800">
+          <h3 class="text-xl text-[#003399] font-normal mb-3">Applicable notices and license terms</h3>
+          <div class="h-44 overflow-y-auto border border-gray-400 p-3 text-xs text-gray-700 leading-relaxed bg-gray-50 font-sans">
+            <p class="font-bold mb-2">MICROSOFT SOFTWARE LICENSE TERMS — WINDOWS OPERATING SYSTEM</p>
+            <p class="mb-2">IF YOU LIVE IN (OR IF YOUR PRINCIPAL PLACE OF BUSINESS IS IN) THE UNITED STATES, PLEASE READ THE BINDING ARBITRATION CLAUSE AND CLASS ACTION WAIVER IN SECTION 11.</p>
+            <p class="mb-2">1. Overview. These license terms are an agreement between you and Microsoft Corporation (or one of its affiliates). They apply to the software named above and any Microsoft services or software updates.</p>
+            <p>2. Installation and Use Rights. Under this agreement, we grant you the right to install and run one instance of the software on your device (the licensed device), for use by one person at a time...</p>
+          </div>
+          <label class="flex items-center gap-2 mt-4 text-sm text-gray-800 cursor-pointer select-none">
+            <input type="checkbox" ${state.acceptedLicense ? 'checked' : ''} onchange="state.acceptedLicense=this.checked; renderScreen();" class="w-4 h-4 accent-blue-600" />
+            <span>I accept the license terms</span>
+          </label>
+        </div>
+        <div class="bg-[#f3f4f6] px-6 py-3 border-t border-gray-300 flex justify-end">
+          <button onclick="submitLicense()" class="win-btn win-btn-primary px-6 py-1.5 text-sm rounded-sm cursor-pointer">Next</button>
+        </div>
+      </div>
+    `;
+  } else if (state.substep === 'type') {
+    bodyHtml = `
+      <div class="win-dialog w-full max-w-[580px] rounded-sm overflow-hidden fade-in">
+        <div class="bg-white px-4 py-2 border-b border-gray-300 flex items-center justify-between text-xs text-gray-700">
+          <div class="flex items-center gap-2 font-semibold"><span class="text-blue-600">❖</span> Windows Setup</div>
+          <span class="text-gray-400">✕</span>
+        </div>
+        <div class="p-6 bg-white text-gray-800 space-y-3">
+          <h3 class="text-xl text-[#003399] font-normal mb-2">Which type of installation do you want?</h3>
+
+          <button onclick="clickUpgradeOption()" class="w-full text-left p-4 border border-gray-300 hover:border-blue-500 hover:bg-blue-50/70 transition rounded-sm cursor-pointer">
+            <div class="text-sm font-bold text-[#003399]">Upgrade: Install Windows and keep files, settings, and applications</div>
+            <div class="text-xs text-gray-600 mt-1">The files, settings, and applications are moved to Windows with this option. This option is only available when a supported version of Windows is already running on the computer.</div>
+          </button>
+
+          <button onclick="clickCustomOption()" class="w-full text-left p-4 border-2 border-gray-300 hover:border-blue-600 hover:bg-blue-50 transition rounded-sm cursor-pointer">
+            <div class="text-sm font-bold text-[#003399]">Custom: Install Windows only (advanced)</div>
+            <div class="text-xs text-gray-600 mt-1">The files, settings, and applications aren't moved to Windows with this option. If you want to make changes to partitions and drives, start the computer using the installation disc. We recommend backing up your files before you continue.</div>
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  screen.innerHTML = `
+    <div class="flex-1 win-setup-bg p-4 sm:p-8 flex items-center justify-center">
+      ${bodyHtml}
+    </div>
+  `;
+}
+
+function submitSetupLang() {
+  if (state.setupTimeCurrency !== 'Thai (Thailand)') {
+    showFeedback(
+      'กรุณาตั้งค่า Time and currency format เป็น Thai (Thailand)',
+      'สำหรับผู้ใช้งานในประเทศไทย ควรตั้งค่า <strong>Time and currency format</strong> เป็น <code>Thai (Thailand)</code> เพื่อให้รูปแบบวันที่, เวลา และสกุลเงิน (฿) ถูกต้องตั้งแต่เริ่มต้นติดตั้ง',
+      'warning'
+    );
+    return;
+  }
+  goSetupStep('install_now', 'ตั้งค่าภาษาและ Time format: Thai (Thailand)');
+}
+
+function showRepairWarning() {
+  showFeedback(
+    'ปุ่ม Repair your computer ใช้สำหรับซ่อมแซมระบบเดิม',
+    'ภารกิจนี้คือการติดตั้ง Windows ใหม่ตั้งแต่ต้น กรุณากดปุ่ม <strong>Install now</strong> ตรงกลางหน้าต่าง',
+    'warning'
+  );
+}
+
+function skipProductKey() {
+  goSetupStep('edition', 'ข้าม Product Key (I don\'t have a product key)');
+}
+
+function checkProductKeyNext() {
+  const val = document.getElementById('prod-key-input')?.value.trim();
+  if (!val) {
+    showFeedback(
+      'ยังไม่ได้กรอก Product Key',
+      'หากยังไม่มี Product Key ให้คลิกที่ข้อความ <strong>"I don\'t have a product key"</strong> ด้านล่างซ้ายเพื่อข้ามขั้นตอนนี้',
+      'warning'
+    );
+    return;
+  }
+  goSetupStep('edition', 'กรอก Product Key และดำเนินการต่อ');
+}
+
+function submitLicense() {
+  if (!state.acceptedLicense) {
+    showFeedback(
+      'กรุณายอมรับเงื่อนไขลิขสิทธิ์ (License Terms)',
+      'คุณต้องติ๊กถูกในช่อง <strong>I accept the license terms</strong> ก่อนจึงจะสามารถติดตั้งระบบปฏิบัติการได้',
+      'warning'
+    );
+    return;
+  }
+  goSetupStep('type', 'ยอมรับเงื่อนไข License Terms');
+}
+
+function clickUpgradeOption() {
+  showFeedback(
+    'ไม่สามารถใช้ตัวเลือก Upgrade ได้ในการติดตั้งแบบ Clean Install!',
+    '<strong>เหตุผลทางเทคนิค:</strong> ตัวเลือก <em>Upgrade</em> ใช้ได้เฉพาะเมื่อคุณเปิดไฟล์ Setup.exe <strong>จากภายในระบบปฏิบัติการ Windows เดิมที่เปิดใช้งานอยู่แล้ว</strong> เท่านั้น<br>เมื่อเราบูตเครื่องมาจาก Bootable USB (Pre-boot) เพื่อลง Windows ใหม่และแบ่งพาร์ทิชันฮาร์ดดิสก์ จึงจำเป็นต้องเลือก <strong>Custom: Install Windows only (advanced)</strong>',
+    'error'
+  );
+}
+
+function clickCustomOption() {
+  hideFeedback();
+  state.stage = 4;
+  state.substep = 'partitions';
+  addLog('เลือก Custom: Install Windows only -> เข้าสู่การจัดการพาร์ทิชัน', 'success');
+  renderAll();
+}
+
+function goSetupStep(nextSub, logMsg) {
+  hideFeedback();
+  state.substep = nextSub;
+  if (logMsg) addLog(logMsg, 'success');
+  renderAll();
+}
+
+// ============================================================================
+// STAGE 4: DISK PARTITION MANAGEMENT
+// ============================================================================
+function renderStage4(screen) {
+  const sel = state.partitions[state.selectedPartIdx];
+  const canNew = sel && sel.type === 'Unallocated';
+  const canDelete = sel && sel.type !== 'Unallocated';
+  const canFormat = sel && sel.type === 'Primary';
+  const nextPart = state.partitions[state.selectedPartIdx + 1];
+  const canExtend = sel && sel.type === 'Primary' && nextPart && nextPart.type === 'Unallocated';
+
+  // Compute virtual drive letters for preview clarity
+  let driveLetterCode = 67; // 'C'
+  const partRows = state.partitions
+    .map((p, idx) => {
+      const isSelected = idx === state.selectedPartIdx;
+      let displayLetter = '';
+      if (p.type === 'Primary') {
+        displayLetter = `(${String.fromCharCode(driveLetterCode++)}:)`;
+      }
+      const usedMB = Math.max(0, p.sizeMB - p.freeMB);
+      let statusBadge = '';
+      if (p.type === 'Unallocated') {
+        statusBadge = '<span class="text-gray-500">-</span>';
+      } else if (p.type === 'System') {
+        statusBadge = '<span class="text-xs px-1.5 py-0.5 bg-amber-100 text-amber-800 rounded">System (NTFS)</span>';
+      } else if (p.hasOldData && !p.formatted) {
+        statusBadge = `<span class="text-xs px-1.5 py-0.5 bg-rose-100 text-rose-700 font-semibold rounded">มีข้อมูลเดิม ${formatMBtoGB(usedMB)} • ต้อง Format ${displayLetter}</span>`;
+      } else if (p.hasOldData && p.formatted) {
+        statusBadge = `<span class="text-xs px-1.5 py-0.5 bg-amber-100 text-amber-800 font-semibold rounded">มีข้อมูลเดิม ${formatMBtoGB(usedMB)} (NTFS) ${displayLetter}</span>`;
+      } else if (p.formatted) {
+        statusBadge = `<span class="text-xs px-1.5 py-0.5 bg-emerald-100 text-emerald-800 font-semibold rounded">Formatted (NTFS) ${displayLetter}</span>`;
+      } else {
+        statusBadge = `<span class="text-xs px-1.5 py-0.5 bg-rose-100 text-rose-700 rounded">ยังไม่ Format ${displayLetter}</span>`;
+      }
+
+      return `
+        <tr onclick="selectPartition(${idx})"
+            class="cursor-pointer border-b border-gray-200 text-xs sm:text-sm ${
+              isSelected ? 'bg-[#0078d7] text-white' : 'hover:bg-blue-50 text-gray-800'
+            }">
+          <td class="px-3 py-2 font-medium flex items-center gap-2">
+            <span>${p.type === 'Unallocated' ? '⬜' : p.type === 'System' ? '⚙️' : '💽'}</span>
+            <span>${p.name}</span>
+          </td>
+          <td class="px-3 py-2 text-right font-mono">${formatMBtoGB(p.sizeMB)} <span class="text-[10px] opacity-75">(${formatNumber(p.sizeMB)} MB)</span></td>
+          <td class="px-3 py-2 text-right font-mono">${formatMBtoGB(p.freeMB)}</td>
+          <td class="px-3 py-2">${p.type === 'Unallocated' ? '' : p.type}</td>
+          <td class="px-3 py-2">${isSelected ? statusBadge.replace(/bg-\S+/g, 'bg-white/20 text-white') : statusBadge}</td>
+        </tr>
+      `;
+    })
+    .join('');
+
+  // Inline Input Box for New or Extend
+  let actionInputHtml = '';
+  if (state.partActionMode === 'new' && sel) {
+    actionInputHtml = `
+      <div class="mt-3 p-3 bg-blue-50 border border-blue-300 rounded-sm flex flex-wrap items-center gap-3 text-xs sm:text-sm text-gray-800 fade-in">
+        <span class="font-semibold">Size (MB):</span>
+        <input id="part-size-input" type="number" min="1000" max="${sel.sizeMB}" value="${state.partInputMB}"
+          class="w-36 px-2.5 py-1 border border-gray-400 bg-white font-mono text-gray-900" />
+        <span class="text-xs text-gray-500">สูงสุด ${formatNumber(sel.sizeMB)} MB (แนะนำ 200,000 MB สำหรับ Drive C:)</span>
+        <div class="ml-auto flex gap-2">
+          <button onclick="applyNewPartition()" class="win-btn win-btn-primary px-4 py-1 cursor-pointer">Apply</button>
+          <button onclick="state.partActionMode=null; renderScreen();" class="win-btn px-3 py-1 cursor-pointer">Cancel</button>
+        </div>
+      </div>
+    `;
+  } else if (state.partActionMode === 'extend' && sel && nextPart) {
+    const maxTotal = sel.sizeMB + nextPart.sizeMB;
+    actionInputHtml = `
+      <div class="mt-3 p-3 bg-blue-50 border border-blue-300 rounded-sm flex flex-wrap items-center gap-3 text-xs sm:text-sm text-gray-800 fade-in">
+        <span class="font-semibold">New Total Size (MB):</span>
+        <input id="part-extend-input" type="number" min="${sel.sizeMB + 1}" max="${maxTotal}" value="${maxTotal}"
+          class="w-36 px-2.5 py-1 border border-gray-400 bg-white font-mono text-gray-900" />
+        <span class="text-xs text-gray-500">ขยายได้สูงสุด ${formatNumber(maxTotal)} MB</span>
+        <div class="ml-auto flex gap-2">
+          <button onclick="applyExtendPartition()" class="win-btn win-btn-primary px-4 py-1 cursor-pointer">Apply</button>
+          <button onclick="state.partActionMode=null; renderScreen();" class="win-btn px-3 py-1 cursor-pointer">Cancel</button>
+        </div>
+      </div>
+    `;
+  }
+
+  screen.innerHTML = `
+    <div class="flex-1 win-setup-bg p-3 sm:p-6 flex items-center justify-center">
+      <div class="win-dialog w-full max-w-[760px] rounded-sm overflow-hidden fade-in">
+        <div class="bg-white px-4 py-2 border-b border-gray-300 flex items-center justify-between text-xs text-gray-700">
+          <div class="flex items-center gap-2 font-semibold"><span class="text-blue-600">❖</span> Windows Setup</div>
+          <span class="text-gray-400">✕</span>
+        </div>
+
+        <div class="p-5 sm:p-6 bg-white text-gray-800">
+          <h3 class="text-xl text-[#003399] font-normal mb-3">Where do you want to install Windows?</h3>
+
+          <!-- Disk Table -->
+          <div class="border border-gray-400 overflow-x-auto bg-white min-h-[190px]">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-gray-100 border-b border-gray-300 text-xs font-semibold text-gray-700">
+                  <th class="px-3 py-2">Name</th>
+                  <th class="px-3 py-2 text-right">Total size</th>
+                  <th class="px-3 py-2 text-right">Free space</th>
+                  <th class="px-3 py-2">Type</th>
+                  <th class="px-3 py-2">Status / Format</th>
+                </tr>
+              </thead>
+              <tbody>${partRows}</tbody>
+            </table>
+          </div>
+
+          <!-- Partition Toolbar -->
+          <div class="mt-3 flex flex-wrap items-center gap-2 sm:gap-3 text-xs">
+            <button onclick="refreshPartitions()" class="win-btn px-3 py-1.5 rounded-sm flex items-center gap-1 cursor-pointer">🔄 Refresh</button>
+            <button onclick="promptDeletePartition()" ${!canDelete ? 'disabled' : ''} class="win-btn px-3 py-1.5 rounded-sm flex items-center gap-1 cursor-pointer">❌ Delete</button>
+            <button onclick="promptFormatPartition()" ${!canFormat ? 'disabled' : ''} class="win-btn px-3 py-1.5 rounded-sm flex items-center gap-1 cursor-pointer font-semibold">🧹 Format</button>
+            <button onclick="startNewPartition()" ${!canNew ? 'disabled' : ''} class="win-btn px-3 py-1.5 rounded-sm flex items-center gap-1 cursor-pointer font-semibold">✨ New</button>
+            <button onclick="startExtendPartition()" ${!canExtend ? 'disabled' : ''} class="win-btn px-3 py-1.5 rounded-sm flex items-center gap-1 cursor-pointer">⤢ Extend</button>
+          </div>
+
+          ${actionInputHtml}
+
+          <!-- Disk Visual Map Bar -->
+          <div class="mt-4 pt-3 border-t border-gray-200">
+            <div class="text-[11px] font-semibold text-gray-500 mb-1.5">แผนผังพื้นที่ดิสก์ (Disk 0 — 500.0 GB):</div>
+            <div class="h-6 w-full bg-gray-200 rounded overflow-hidden flex border border-gray-400">
+              ${state.partitions
+                .map((p, idx) => {
+                  const pct = Math.max(2, (p.sizeMB / 512000) * 100);
+                  const bg =
+                    p.type === 'Unallocated'
+                      ? 'bg-slate-300 text-slate-700'
+                      : p.type === 'System'
+                      ? 'bg-amber-400 text-amber-950'
+                      : p.hasOldData
+                      ? 'bg-orange-500 text-white'
+                      : p.formatted
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-sky-300 text-sky-950';
+                  return `<div onclick="selectPartition(${idx})" style="width:${pct}%" title="${p.name} (${formatMBtoGB(p.sizeMB)})"
+                    class="${bg} h-full border-r border-white/60 flex items-center justify-center text-[10px] font-bold truncate px-1 cursor-pointer">${
+                    p.type === 'System' ? 'Sys' : p.type === 'Unallocated' ? 'Unalloc' : p.hasOldData ? `${formatMBtoGB(p.sizeMB)} (มีข้อมูลเดิม)` : `${formatMBtoGB(p.sizeMB)} (Clean)`
+                  }</div>`;
+                })
+                .join('')}
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-[#f3f4f6] px-6 py-3 border-t border-gray-300 flex items-center justify-between">
+          <span class="text-xs text-gray-500">เลือก Primary Partition ตัวแรก (Drive C:) ก่อนกด Next</span>
+          <button onclick="submitPartitionsNext()" class="win-btn win-btn-primary px-7 py-1.5 text-sm rounded-sm cursor-pointer">Next</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function selectPartition(idx) {
+  state.selectedPartIdx = idx;
+  state.partActionMode = null;
+  renderScreen();
+}
+
+function refreshPartitions() {
+  addLog('รีเฟรชตารางพาร์ทิชัน Disk 0');
+  renderScreen();
+}
+
+function startNewPartition() {
+  const sel = state.partitions[state.selectedPartIdx];
+  if (!sel || sel.type !== 'Unallocated') return;
+  state.partActionMode = 'new';
+  // Suggest 200,000 MB if this is the first primary partition and enough space exists, else all remaining
+  const hasPrimary = state.partitions.some((p) => p.type === 'Primary');
+  state.partInputMB = !hasPrimary && sel.sizeMB > 250000 ? 200000 : sel.sizeMB;
+  renderScreen();
+}
+
+function applyNewPartition() {
+  const sel = state.partitions[state.selectedPartIdx];
+  const val = parseInt(document.getElementById('part-size-input').value, 10);
+  if (isNaN(val) || val < 10000 || val > sel.sizeMB) {
+    showFeedback(
+      'ขนาดพาร์ทิชันไม่ถูกต้อง',
+      `กรุณาระบุขนาดระหว่าง 10,000 MB ถึง ${formatNumber(sel.sizeMB)} MB (สำหรับ Drive C: แนะนำประมาณ 200,000 MB)`,
+      'warning'
+    );
+    return;
+  }
+
+  if (!state.systemReservedCreated) {
+    // Show authentic Windows System Reserved confirmation dialog
+    showModal(`
+      <div class="win-dialog rounded-sm overflow-hidden text-gray-900">
+        <div class="bg-white px-4 py-2 border-b border-gray-300 font-semibold text-xs">Windows Setup</div>
+        <div class="p-5 text-sm flex gap-3 items-start bg-white">
+          <span class="text-2xl text-blue-600">ℹ️</span>
+          <p>To ensure that all Windows features work correctly, Windows might create additional partitions for system files.</p>
+        </div>
+        <div class="bg-[#f3f4f6] px-4 py-2.5 border-t border-gray-300 flex justify-end gap-2">
+          <button onclick="confirmCreateWithSystemReserved(${val})" class="win-btn win-btn-primary px-5 py-1 text-sm cursor-pointer">OK</button>
+          <button onclick="closeModal()" class="win-btn px-4 py-1 text-sm cursor-pointer">Cancel</button>
+        </div>
+      </div>
+    `);
+  } else {
+    executeCreatePartition(val, false);
+  }
+}
+
+function confirmCreateWithSystemReserved(val) {
+  closeModal();
+  executeCreatePartition(val, true);
+}
+
+function executeCreatePartition(reqMB, createSys) {
+  const idx = state.selectedPartIdx;
+  const sel = state.partitions[idx];
+  const newEntries = [];
+  let usedMB = 0;
+
+  if (createSys) {
+    const sysSize = 500;
+    const primarySize = reqMB + sysSize > sel.sizeMB ? sel.sizeMB - sysSize : reqMB;
+    newEntries.push({
+      name: 'System Reserved',
+      sizeMB: sysSize,
+      freeMB: 465,
+      type: 'System',
+      formatted: true,
+    });
+    newEntries.push({
+      name: 'Primary',
+      sizeMB: primarySize,
+      freeMB: primarySize,
+      type: 'Primary',
+      formatted: false,
+    });
+    usedMB = sysSize + primarySize;
+    state.systemReservedCreated = true;
+    addLog(`สร้าง System Reserved (500 MB) และ Primary Partition (${formatNumber(primarySize)} MB) อัตโนมัติ`, 'success');
+  } else {
+    newEntries.push({
+      name: 'Primary',
+      sizeMB: reqMB,
+      freeMB: reqMB,
+      type: 'Primary',
+      formatted: false,
+    });
+    usedMB = reqMB;
+    addLog(`สร้าง Primary Partition ขนาด ${formatNumber(reqMB)} MB`, 'success');
+  }
+
+  const remaining = sel.sizeMB - usedMB;
+  if (remaining > 0) {
+    newEntries.push({
+      name: 'Drive 0 Unallocated Space',
+      sizeMB: remaining,
+      freeMB: remaining,
+      type: 'Unallocated',
+      formatted: false,
+    });
+  }
+
+  state.partitions.splice(idx, 1, ...newEntries);
+  renumberPartitions();
+  state.partActionMode = null;
+  state.selectedPartIdx = createSys ? idx + 1 : idx;
+  hideFeedback();
+  renderAll();
+}
+
+function renumberPartitions() {
+  let pNum = 1;
+  state.partitions.forEach((p, i) => {
+    p.id = i + 1;
+    if (p.type === 'System') {
+      p.name = `Drive 0 Partition ${pNum++}: System Reserved`;
+    } else if (p.type === 'Primary') {
+      p.name = `Drive 0 Partition ${pNum++}`;
+    } else {
+      p.name = 'Drive 0 Unallocated Space';
+    }
+  });
+}
+
+function promptFormatPartition() {
+  const sel = state.partitions[state.selectedPartIdx];
+  if (!sel || sel.type !== 'Primary') return;
+  showModal(`
+    <div class="win-dialog rounded-sm overflow-hidden text-gray-900">
+      <div class="bg-white px-4 py-2 border-b border-gray-300 font-semibold text-xs">Windows Setup</div>
+      <div class="p-5 text-sm flex gap-3 items-start bg-white">
+        <span class="text-2xl text-amber-500">⚠️</span>
+        <p>This partition might contain important files or applications from your computer manufacturer. If you format this partition, any data stored on it will be lost.</p>
+      </div>
+      <div class="bg-[#f3f4f6] px-4 py-2.5 border-t border-gray-300 flex justify-end gap-2">
+        <button onclick="executeFormatPartition()" class="win-btn win-btn-primary px-5 py-1 text-sm cursor-pointer">OK</button>
+        <button onclick="closeModal()" class="win-btn px-4 py-1 text-sm cursor-pointer">Cancel</button>
+      </div>
+    </div>
+  `);
+}
+
+function executeFormatPartition() {
+  closeModal();
+  const sel = state.partitions[state.selectedPartIdx];
+  const hadData = sel.hasOldData;
+  sel.formatted = true;
+  sel.hasOldData = false;
+  sel.oldDataNote = null;
+  sel.freeMB = Math.max(0, sel.sizeMB - 120); // NTFS metadata overhead
+  hideFeedback();
+  addLog(
+    hadData
+      ? `Format ล้างข้อมูลเดิมใน ${sel.name} (${formatMBtoGB(sel.sizeMB)}) เป็น NTFS สำเร็จ`
+      : `Format ${sel.name} (${formatMBtoGB(sel.sizeMB)}) เป็น NTFS สำเร็จ`,
+    'success'
+  );
+  showFeedback(
+    `Format ${sel.name} เรียบร้อยแล้ว`,
+    hadData
+      ? `ข้อมูลเดิมในพาร์ทิชันถูกล้างออกหมดแล้ว (พื้นที่ว่างกลับมาเป็น <strong>${formatMBtoGB(sel.freeMB)}</strong> พร้อมสำหรับติดตั้งระบบ)`
+      : `สร้างระบบไฟล์ NTFS ใหม่เรียบร้อยแล้ว (พื้นที่ว่าง <strong>${formatMBtoGB(sel.freeMB)}</strong>)`,
+    'success'
+  );
+  renderAll();
+}
+
+function promptDeletePartition() {
+  const sel = state.partitions[state.selectedPartIdx];
+  if (!sel || sel.type === 'Unallocated') return;
+  showModal(`
+    <div class="win-dialog rounded-sm overflow-hidden text-gray-900">
+      <div class="bg-white px-4 py-2 border-b border-gray-300 font-semibold text-xs">Windows Setup</div>
+      <div class="p-5 text-sm flex gap-3 items-start bg-white">
+        <span class="text-2xl text-rose-500">⚠️</span>
+        <p>Deleting this partition will erase all data stored on it. (${sel.name})</p>
+      </div>
+      <div class="bg-[#f3f4f6] px-4 py-2.5 border-t border-gray-300 flex justify-end gap-2">
+        <button onclick="executeDeletePartition()" class="win-btn win-btn-primary px-5 py-1 text-sm cursor-pointer">OK</button>
+        <button onclick="closeModal()" class="win-btn px-4 py-1 text-sm cursor-pointer">Cancel</button>
+      </div>
+    </div>
+  `);
+}
+
+function executeDeletePartition() {
+  closeModal();
+  const idx = state.selectedPartIdx;
+  const sel = state.partitions[idx];
+  addLog(`ลบ ${sel.name} (${formatMBtoGB(sel.sizeMB)})`);
+
+  state.partitions[idx] = {
+    name: 'Drive 0 Unallocated Space',
+    sizeMB: sel.sizeMB,
+    freeMB: sel.sizeMB,
+    type: 'Unallocated',
+    formatted: false,
+  };
+
+  // Merge adjacent Unallocated spaces
+  const merged = [];
+  for (const p of state.partitions) {
+    if (p.type === 'Unallocated' && merged.length > 0 && merged[merged.length - 1].type === 'Unallocated') {
+      merged[merged.length - 1].sizeMB += p.sizeMB;
+      merged[merged.length - 1].freeMB += p.freeMB;
+    } else {
+      merged.push(p);
+    }
+  }
+  state.partitions = merged;
+  state.systemReservedCreated = state.partitions.some((p) => p.type === 'System');
+  renumberPartitions();
+  state.selectedPartIdx = Math.min(idx, state.partitions.length - 1);
+  state.partActionMode = null;
+  renderAll();
+}
+
+function startExtendPartition() {
+  state.partActionMode = 'extend';
+  renderScreen();
+}
+
+function applyExtendPartition() {
+  const idx = state.selectedPartIdx;
+  const sel = state.partitions[idx];
+  const next = state.partitions[idx + 1];
+  const newSize = parseInt(document.getElementById('part-extend-input').value, 10);
+  const maxTotal = sel.sizeMB + next.sizeMB;
+  if (isNaN(newSize) || newSize <= sel.sizeMB || newSize > maxTotal) {
+    showFeedback('ขนาด Extend ไม่ถูกต้อง', `กรุณาระบุขนาดระหว่าง ${formatNumber(sel.sizeMB + 1)} ถึง ${formatNumber(maxTotal)} MB`, 'warning');
+    return;
+  }
+  const delta = newSize - sel.sizeMB;
+  sel.sizeMB = newSize;
+  sel.freeMB += delta;
+  next.sizeMB -= delta;
+  next.freeMB -= delta;
+  if (next.sizeMB <= 0) {
+    state.partitions.splice(idx + 1, 1);
+  }
+  state.partActionMode = null;
+  addLog(`ขยายขนาด ${sel.name} เป็น ${formatNumber(newSize)} MB`, 'success');
+  renderAll();
+}
+
+function submitPartitionsNext() {
+  const sel = state.partitions[state.selectedPartIdx];
+  const primaries = state.partitions.filter((p) => p.type === 'Primary');
+  const firstPrimaryIdx = state.partitions.findIndex((p) => p.type === 'Primary');
+
+  if (!sel) {
+    showFeedback('กรุณาเลือกพาร์ทิชัน', 'คลิกเลือกพาร์ทิชัน Drive C: ก่อนกด Next', 'warning');
+    return;
+  }
+
+  if (sel.type === 'System') {
+    showFeedback(
+      'ไม่สามารถติดตั้ง Windows ลงใน System Reserved Partition ได้!',
+      '<strong>เหตุผลทางเทคนิค:</strong> พาร์ทิชัน <em>System Reserved</em> มีขนาดเพียง 500 MB สงวนไว้สำหรับเก็บไฟล์ Boot Manager (BCD) และระบบเข้ารหัส BitLocker เท่านั้น ไม่สามารถติดตั้งตัวระบบปฏิบัติการ Windows ลงไปได้',
+      'error'
+    );
+    return;
+  }
+
+  if (primaries.length < 2) {
+    showFeedback(
+      'ยังไม่ได้แบ่งพาร์ทิชันครบ 2 ไดรฟ์ตามภารกิจ!',
+      '<strong>คำแนะนำ:</strong> ตามภารกิจต้องแบ่งฮาร์ดดิสก์ออกเป็น <strong>2 ไดรฟ์หลัก</strong> (Drive C: สำหรับระบบปฏิบัติการ ~200,000 MB และ Drive D: สำหรับเก็บข้อมูลจากพื้นที่ Unallocated ที่เหลือ) เพื่อแยกข้อมูลออกจากไฟล์ระบบ กรุณาคลิก Unallocated Space แล้วกด <strong>New</strong> สร้างไดรฟ์ที่ 2 ให้เรียบร้อยก่อน',
+      'warning'
+    );
+    return;
+  }
+
+  if (sel.type === 'Unallocated') {
+    showFeedback(
+      'คุณเลือกพื้นที่ Unallocated Space!',
+      'กรุณาสร้างพาร์ทิชันให้ครบ และคลิกเลือก <strong>Primary Partition ตัวแรก (Drive C:)</strong> ก่อนกด Next',
+      'warning'
+    );
+    return;
+  }
+
+  const firstPrimary = primaries[0];
+  if (firstPrimary && (!firstPrimary.formatted || firstPrimary.hasOldData)) {
+    showFeedback(
+      'พบข้อมูลเดิมใน Drive C:! กรุณา Format ข้อมูลเดิมออกก่อน',
+      `<strong>เหตุผลทางเทคนิค:</strong> พาร์ทิชัน <strong>${firstPrimary.name}</strong> ยังมีระบบปฏิบัติการและข้อมูลเดิมอยู่ (เหลือพื้นที่ว่างเพียง ${formatMBtoGB(firstPrimary.freeMB)} จาก ${formatMBtoGB(firstPrimary.sizeMB)}) หากติดตั้งทับโดยไม่ Format ระบบจะเก็บไฟล์เก่าไว้ในโฟลเดอร์ <em>Windows.old</em> ซึ่งเปลืองพื้นที่และอาจเกิดปัญหาไฟล์ค้าง กรุณาคลิกเลือก <strong>${firstPrimary.name}</strong> แล้วกดปุ่ม <strong>Format</strong> เพื่อล้างข้อมูลเดิมก่อน`,
+      'error'
+    );
+    return;
+  }
+
+  const unformatted = primaries.filter((p) => !p.formatted);
+  if (unformatted.length > 0) {
+    showFeedback(
+      'ลืมกด Format พาร์ทิชัน!',
+      `<strong>เหตุผลทางเทคนิค:</strong> พบพาร์ทิชันที่ยังไม่ได้ Format (${unformatted.map((u) => u.name).join(', ')}) พาร์ทิชันใหม่ต้องถูก Format เป็นระบบไฟล์ <strong>NTFS</strong> ก่อนจึงจะพร้อมจัดเก็บไฟล์ระบบและข้อมูลได้อย่างสมบูรณ์ กรุณาคลิกที่พาร์ทิชันแล้วกดปุ่ม <strong>Format</strong> ให้ครบทุกไดรฟ์`,
+      'error'
+    );
+    return;
+  }
+
+  if (state.selectedPartIdx !== firstPrimaryIdx) {
+    showFeedback(
+      'คุณเลือกติดตั้งลงใน Drive D: แทนที่จะเป็น Drive C:!',
+      '<strong>เหตุผลทางเทคนิค:</strong> พาร์ทิชันที่ 2 (Drive D:) ถูกสร้างไว้สำหรับเก็บข้อมูลส่วนตัวและไฟล์งาน ไม่ควรติดตั้ง Windows ลงใน Drive D: เพื่อป้องกันความสับสนของ Drive Letter และประสิทธิภาพการอ่านเขียน กรุณาคลิกเลือก <strong>' +
+        state.partitions[firstPrimaryIdx].name +
+        '</strong> (Primary ตัวแรก / Drive C:) แล้วกด Next',
+      'error'
+    );
+    return;
+  }
+
+  // All validations passed!
+  hideFeedback();
+  addLog('ตรวจสอบพาร์ทิชันผ่านทั้งหมด -> เริ่มติดตั้งไฟล์ลง Drive C:', 'success');
+  startStage5();
+}
+
+// ============================================================================
+// STAGE 5: INSTALLING WINDOWS PROGRESS
+// ============================================================================
+function startStage5() {
+  clearAllTimers();
+  state.stage = 5;
+  state.substep = 'installing';
+  state.installPhase = 0;
+  state.installPercent = 0;
+  renderAll();
+
+  // ~6.5 seconds simulation
+  const iv = setInterval(() => {
+    if (state.installPhase === 0) {
+      state.installPhase = 1;
+      state.installPercent = 4;
+    } else if (state.installPhase === 1) {
+      state.installPercent += 4;
+      if (state.installPercent >= 100) {
+        state.installPercent = 100;
+        state.installPhase = 2;
+      }
+    } else if (state.installPhase === 2) {
+      state.installPhase = 3;
+    } else if (state.installPhase === 3) {
+      state.installPhase = 4;
+    } else if (state.installPhase === 4) {
+      state.installPhase = 5;
+      clearInterval(iv);
+      renderScreen();
+      renderGuide();
+      addLog('ติดตั้งไฟล์ระบบครบ 100% -> เตรียมเข้าสู่ OOBE', 'success');
+      const t = setTimeout(() => enterGettingReady(), 600);
+      activeTimers.push(t);
+      return;
+    }
+    renderScreen();
+    renderGuide();
+  }, 190);
+  activeTimers.push(iv);
+}
+
+function enterGettingReady() {
+  clearAllTimers();
+  hideFeedback();
+  state.substep = 'getting_ready';
+  addLog('บูตเข้า Hard Drive (Drive C:) สำเร็จ -> Preparing Windows', 'success');
+  renderAll();
+
+  const t = setTimeout(() => {
+    state.stage = 6;
+    state.substep = 'region';
+    addLog('เข้าสู่หน้าจอตั้งค่าเริ่มต้น OOBE (Out-Of-Box Experience)', 'success');
+    renderAll();
+  }, 2400);
+  activeTimers.push(t);
+}
+
+function renderStage5(screen) {
+  if (state.substep === 'installing') {
+    const steps = [
+      { label: 'Copying Windows files', done: state.installPhase > 0, active: state.installPhase === 0 },
+      { label: `Getting files ready for installation (${state.installPercent}%)`, done: state.installPhase > 1, active: state.installPhase === 1 },
+      { label: 'Installing features', done: state.installPhase > 2, active: state.installPhase === 2 },
+      { label: 'Installing updates', done: state.installPhase > 3, active: state.installPhase === 3 },
+      { label: 'Finishing up', done: state.installPhase > 4, active: state.installPhase === 4 },
+    ];
+    const totalPct =
+      state.installPhase === 0
+        ? 5
+        : state.installPhase === 1
+        ? Math.round(10 + state.installPercent * 0.65)
+        : state.installPhase === 2
+        ? 82
+        : state.installPhase === 3
+        ? 92
+        : state.installPhase === 4
+        ? 98
+        : 100;
+
+    screen.innerHTML = `
+      <div class="flex-1 win-setup-bg p-4 sm:p-8 flex items-center justify-center">
+        <div class="win-dialog w-full max-w-[580px] rounded-sm overflow-hidden">
+          <div class="bg-white px-4 py-2 border-b border-gray-300 flex items-center justify-between text-xs text-gray-700">
+            <div class="flex items-center gap-2 font-semibold"><span class="text-blue-600">❖</span> Windows Setup</div>
+          </div>
+          <div class="p-6 sm:p-8 bg-white text-gray-800 space-y-5">
+            <div>
+              <h3 class="text-xl text-[#003399] font-normal">Installing Windows</h3>
+              <p class="text-xs text-gray-500 mt-1">Your PC will restart several times. This might take a while.</p>
+            </div>
+
+            <div class="space-y-2.5 text-sm">
+              ${steps
+                .map(
+                  (st) => `
+                <div class="flex items-center gap-3 ${st.done ? 'text-gray-700' : st.active ? 'text-[#003399] font-bold' : 'text-gray-400'}">
+                  <span class="w-5 text-center font-bold">${st.done ? '<span class="text-emerald-600">✓</span>' : st.active ? '▶' : '•'}</span>
+                  <span>${st.label}</span>
+                </div>
+              `
+                )
+                .join('')}
+            </div>
+
+            <div class="pt-2">
+              <div class="w-full h-3.5 bg-gray-200 border border-gray-300 overflow-hidden">
+                <div class="h-full bg-emerald-500 transition-all duration-150" style="width:${totalPct}%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  // getting_ready
+  screen.innerHTML = `
+    <div class="flex-1 bg-black flex flex-col items-center justify-center gap-6 text-white fade-in">
+      <div class="w-16 h-16 text-sky-400">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5.5L10.5 4.4V11.5H3V5.5ZM11.5 4.25L21 2.85V11.5H11.5V4.25ZM3 12.5H10.5V19.6L3 18.5V12.5ZM11.5 12.5H21V21.15L11.5 19.75V12.5Z"/></svg>
+      </div>
+      <div class="win-spinner"><span></span><span></span><span></span><span></span><span></span></div>
+      <div class="text-base font-light tracking-wide">Getting devices ready... Getting ready</div>
+    </div>
+  `;
+}
+
+// ============================================================================
+// STAGE 6: OOBE & WINDOWS DESKTOP
+// ============================================================================
+function renderStage6(screen) {
+  const sub = state.substep;
+
+  if (sub === 'region') {
+    const regions = ['Australia', 'Japan', 'Singapore', 'Thailand', 'United Kingdom', 'United States'];
+    screen.innerHTML = renderOobeShell(
+      '🌍',
+      'Is this the right country or region?',
+      `<div class="space-y-1.5 max-h-56 overflow-y-auto border border-slate-200 rounded-lg p-1.5 bg-slate-50">
+        ${regions
+          .map(
+            (r) => `
+          <div onclick="state.oobeRegion='${r}'; renderScreen();"
+            class="px-3.5 py-2.5 rounded-md text-sm cursor-pointer flex items-center justify-between transition ${
+              state.oobeRegion === r ? 'bg-[#0067c0] text-white font-semibold shadow-sm' : 'hover:bg-slate-200/70 text-slate-800'
+            }">
+            <span>${r}</span>
+            ${r === 'Thailand' ? '<span class="text-xs opacity-80">🇹🇭</span>' : ''}
+          </div>
+        `
+          )
+          .join('')}
+      </div>`,
+      `<button onclick="submitOobeRegion()" class="px-7 py-2 rounded-md bg-[#0067c0] hover:bg-[#005a9e] text-white text-sm font-semibold shadow cursor-pointer">Yes</button>`
+    );
+    return;
+  }
+
+  if (sub === 'kb_primary') {
+    const layouts = ['US', 'UK', 'Thai Kedmanee', 'Japanese'];
+    screen.innerHTML = renderOobeShell(
+      '⌨️',
+      'Is this the right keyboard layout or input method?',
+      `<p class="text-xs text-slate-500 mb-3">If you also use another keyboard layout, you can add that next.</p>
+      <div class="space-y-1.5 border border-slate-200 rounded-lg p-1.5 bg-slate-50">
+        ${layouts
+          .map(
+            (l) => `
+          <div onclick="state.oobeKeyboardPrimary='${l}'; renderScreen();"
+            class="px-3.5 py-2.5 rounded-md text-sm cursor-pointer transition ${
+              state.oobeKeyboardPrimary === l ? 'bg-[#0067c0] text-white font-semibold' : 'hover:bg-slate-200/70 text-slate-800'
+            }">${l}</div>
+        `
+          )
+          .join('')}
+      </div>`,
+      `<button onclick="submitOobeKbPrimary()" class="px-7 py-2 rounded-md bg-[#0067c0] hover:bg-[#005a9e] text-white text-sm font-semibold shadow cursor-pointer">Yes</button>`
+    );
+    return;
+  }
+
+  if (sub === 'kb_add_prompt') {
+    screen.innerHTML = renderOobeShell(
+      '⌨️',
+      'Want to add a second keyboard layout?',
+      `<p class="text-sm text-slate-600 leading-relaxed">
+        คุณตั้งค่าแป้นพิมพ์หลักเป็น <strong>US</strong> แล้ว สำหรับผู้ใช้งานในประเทศไทยควรเพิ่มแป้นพิมพ์ <strong>Thai Kedmanee (ภาษาไทย)</strong> เพื่อให้สามารถพิมพ์ภาษาไทยและสลับภาษาได้ทันที
+      </p>`,
+      `<div class="flex gap-3">
+        <button onclick="goOobe('kb_add_lang')" class="px-6 py-2 rounded-md bg-[#0067c0] hover:bg-[#005a9e] text-white text-sm font-semibold shadow cursor-pointer">Add layout</button>
+        <button onclick="warnSkipThaiKb()" class="px-5 py-2 rounded-md bg-slate-200 hover:bg-slate-300 text-slate-700 text-sm font-medium cursor-pointer">Skip</button>
+      </div>`
+    );
+    return;
+  }
+
+  if (sub === 'kb_add_lang') {
+    screen.innerHTML = renderOobeShell(
+      '🇹🇭',
+      'Which language do you want to use for your second keyboard layout?',
+      `<div class="space-y-1.5 border border-slate-200 rounded-lg p-1.5 bg-slate-50">
+        <div class="px-3.5 py-2.5 rounded-md text-sm bg-[#0067c0] text-white font-semibold flex justify-between">
+          <span>Thai (ไทย)</span><span>✓</span>
+        </div>
+        <div onclick="showFeedback('เลือกภาษาไทย (Thai)', 'ภารกิจกำหนดให้เพิ่มแป้นพิมพ์ภาษาไทย (Thai Kedmanee)', 'warning')" class="px-3.5 py-2.5 rounded-md text-sm text-slate-600 hover:bg-slate-200 cursor-pointer">
+          Japanese (日本語)
+        </div>
+      </div>`,
+      `<button onclick="goOobe('kb_add_layout')" class="px-7 py-2 rounded-md bg-[#0067c0] hover:bg-[#005a9e] text-white text-sm font-semibold shadow cursor-pointer">Next</button>`
+    );
+    return;
+  }
+
+  if (sub === 'kb_add_layout') {
+    const thLayouts = ['Thai Kedmanee', 'Thai Pattachote'];
+    screen.innerHTML = renderOobeShell(
+      '⌨️',
+      'Which keyboard layout do you want to use?',
+      `<div class="space-y-1.5 border border-slate-200 rounded-lg p-1.5 bg-slate-50">
+        ${thLayouts
+          .map(
+            (l) => `
+          <div onclick="state.oobeThaiLayout='${l}'; renderScreen();"
+            class="px-3.5 py-2.5 rounded-md text-sm cursor-pointer transition ${
+              state.oobeThaiLayout === l ? 'bg-[#0067c0] text-white font-semibold' : 'hover:bg-slate-200/70 text-slate-800'
+            }">${l}</div>
+        `
+          )
+          .join('')}
+      </div>`,
+      `<button onclick="submitOobeThaiLayout()" class="px-6 py-2 rounded-md bg-[#0067c0] hover:bg-[#005a9e] text-white text-sm font-semibold shadow cursor-pointer">Add layout</button>`
+    );
+    return;
+  }
+
+  if (sub === 'network') {
+    screen.innerHTML = renderOobeShell(
+      '🌐',
+      "Let's connect you to a network",
+      `<p class="text-xs text-slate-500 mb-3">You'll need an internet connection to continue setting up your device with a Microsoft account, or choose offline setup.</p>
+      <div class="space-y-1.5 border border-slate-200 rounded-lg p-2 bg-slate-50 text-sm">
+        ${['Lab-Computer-5G', 'School_WiFi_Free', 'Ethernet (Not Connected)'].map(
+          (w) => `
+          <div onclick="warnConnectWifi()" class="px-3 py-2.5 rounded-md hover:bg-slate-200/80 text-slate-700 flex items-center justify-between cursor-pointer">
+            <span class="flex items-center gap-2"><span>📶</span><span>${w}</span></span>
+            <span class="text-xs text-slate-400">Secured</span>
+          </div>
+        `
+        ).join('')}
+      </div>`,
+      `<div class="w-full flex items-center justify-between">
+        <button onclick="selectNoInternet()" class="text-sm text-[#0067c0] hover:underline font-semibold cursor-pointer">
+          I don't have internet
+        </button>
+        <button onclick="warnConnectWifi()" class="px-6 py-2 rounded-md bg-slate-200 text-slate-500 text-sm font-semibold cursor-pointer">Next</button>
+      </div>`
+    );
+    return;
+  }
+
+  if (sub === 'limited_setup') {
+    screen.innerHTML = renderOobeShell(
+      '👤',
+      "There's more to discover when you connect to the internet",
+      `<div class="space-y-3 text-sm text-slate-600">
+        <p>การเชื่อมต่ออินเทอร์เน็ตจะบังคับให้คุณลงชื่อเข้าใช้ด้วย Microsoft Account และซิงค์ข้อมูล Cloud</p>
+        <div class="p-3 rounded-lg bg-sky-50 border border-sky-200 text-sky-900 text-xs">
+          💡 สำหรับการฝึกปฏิบัติติดตั้งเครื่อง Offline หรือเครื่ององค์กร ให้เลือก <strong>Continue with limited setup</strong> เพื่อสร้างบัญชีแบบ <strong>Local Account</strong>
+        </div>
+      </div>`,
+      `<div class="w-full flex items-center justify-between gap-2">
+        <button onclick="selectLimitedSetup()" class="text-sm text-[#0067c0] hover:underline font-semibold cursor-pointer">
+          Continue with limited setup
+        </button>
+        <button onclick="warnLimitedConnectNow()" class="px-5 py-2 rounded-md bg-[#0067c0] text-white text-sm font-semibold cursor-pointer">Connect now</button>
+      </div>`
+    );
+    return;
+  }
+
+  if (sub === 'account_user') {
+    screen.innerHTML = renderOobeShell(
+      '👤',
+      "Who's going to use this PC?",
+      `<p class="text-xs text-slate-500 mb-4">Your local account name will appear on the Windows sign-in screen.</p>
+      <input id="oobe-user-input" type="text" value="${state.oobeUser}" placeholder="เช่น Student01 หรือ Admin"
+        class="w-full px-3.5 py-2.5 rounded-md border-2 border-slate-300 focus:border-[#0067c0] focus:outline-none text-slate-900 text-sm" />`,
+      `<button onclick="submitOobeUser()" class="px-7 py-2 rounded-md bg-[#0067c0] hover:bg-[#005a9e] text-white text-sm font-semibold shadow cursor-pointer">Next</button>`
+    );
+    return;
+  }
+
+  if (sub === 'account_pass') {
+    screen.innerHTML = renderOobeShell(
+      '🔐',
+      'Create a super memorable password',
+      `<p class="text-xs text-slate-500 mb-3">ตั้งรหัสผ่านสำหรับบัญชี <strong class="text-slate-800">${state.oobeUser}</strong></p>
+      <div class="space-y-3">
+        <div>
+          <label class="text-xs font-semibold text-slate-600 block mb-1">Password</label>
+          <input id="oobe-pass1" type="password" value="${state.oobePassword}" placeholder="กรอกรหัสผ่าน..."
+            class="w-full px-3.5 py-2 rounded-md border-2 border-slate-300 focus:border-[#0067c0] focus:outline-none text-slate-900 text-sm" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-600 block mb-1">Confirm password</label>
+          <input id="oobe-pass2" type="password" value="${state.oobePasswordConfirm}" placeholder="ยืนยันรหัสผ่านอีกครั้ง..."
+            class="w-full px-3.5 py-2 rounded-md border-2 border-slate-300 focus:border-[#0067c0] focus:outline-none text-slate-900 text-sm" />
+        </div>
+      </div>`,
+      `<button onclick="submitOobePassword()" class="px-7 py-2 rounded-md bg-[#0067c0] hover:bg-[#005a9e] text-white text-sm font-semibold shadow cursor-pointer">Next</button>`
+    );
+    return;
+  }
+
+  if (sub === 'privacy') {
+    const items = [
+      { key: 'location', title: 'Location', desc: 'อนุญาตให้ Windows และแอปเข้าถึงตำแหน่งที่ตั้งของคุณ' },
+      { key: 'findDevice', title: 'Find my device', desc: 'ใช้ข้อมูลตำแหน่งเพื่อค้นหาอุปกรณ์กรณีสูญหาย' },
+      { key: 'diagnostics', title: 'Diagnostic data', desc: 'ส่งข้อมูลการวินิจฉัยเพิ่มเติมไปยัง Microsoft' },
+      { key: 'inking', title: 'Inking & typing', desc: 'ส่งข้อมูลการพิมพ์เพื่อปรับปรุงการสะกดคำ' },
+      { key: 'tailored', title: 'Tailored experiences', desc: 'ใช้ข้อมูลวินิจฉัยเพื่อแสดงคำแนะนำและข้อเสนอที่ตรงใจ' },
+      { key: 'ads', title: 'Advertising ID', desc: 'อนุญาตให้แอปใช้ Advertising ID เพื่อแสดงโฆษณาเฉพาะบุคคล' },
+    ];
+    screen.innerHTML = renderOobeShell(
+      '🛡️',
+      'Choose privacy settings for your device',
+      `<div class="space-y-2.5 max-h-60 overflow-y-auto pr-1">
+        ${items
+          .map((it) => {
+            const on = state.privacy[it.key];
+            return `
+            <div onclick="togglePrivacy('${it.key}')" class="p-3 rounded-lg border border-slate-200 hover:border-sky-300 bg-slate-50 flex items-center justify-between gap-3 cursor-pointer">
+              <div>
+                <div class="text-sm font-semibold text-slate-800">${it.title}</div>
+                <div class="text-xs text-slate-500">${it.desc}</div>
+              </div>
+              <div class="w-11 h-6 rounded-full p-0.5 transition-colors shrink-0 ${on ? 'bg-[#0067c0]' : 'bg-slate-300'}">
+                <div class="w-5 h-5 rounded-full bg-white shadow transform transition-transform ${on ? 'translate-x-5' : 'translate-x-0'}"></div>
+              </div>
+            </div>
+          `;
+          })
+          .join('')}
+      </div>`,
+      `<button onclick="submitPrivacy()" class="px-7 py-2 rounded-md bg-[#0067c0] hover:bg-[#005a9e] text-white text-sm font-semibold shadow cursor-pointer">Accept</button>`
+    );
+    return;
+  }
+
+  if (sub === 'preparing') {
+    screen.innerHTML = `
+      <div class="flex-1 oobe-bg flex flex-col items-center justify-center text-white p-8 text-center gap-4 fade-in">
+        <h2 class="text-3xl font-light">Hi, ${state.oobeUser}</h2>
+        <p class="text-lg font-light text-sky-100">We're getting everything ready for you...</p>
+        <p class="text-xs text-sky-200/80 mt-2">This might take a few minutes. Don't turn off your PC.</p>
+      </div>
+    `;
+    return;
+  }
+
+  // DESKTOP SCREEN
+  renderWindowsDesktop(screen);
+}
+
+function renderOobeShell(icon, title, contentHtml, footerHtml) {
+  return `
+    <div class="flex-1 oobe-light-bg p-4 sm:p-8 flex items-center justify-center text-slate-800 fade-in">
+      <div class="w-full max-w-[720px] bg-white/95 backdrop-blur rounded-2xl shadow-2xl border border-slate-200 overflow-hidden grid grid-cols-1 md:grid-cols-12 min-h-[400px]">
+        <!-- Left Graphic Side -->
+        <div class="md:col-span-4 bg-gradient-to-br from-sky-50 to-blue-100 p-6 flex flex-col items-center justify-center border-b md:border-b-0 md:border-r border-slate-200">
+          <div class="w-20 h-20 rounded-2xl bg-white shadow-md flex items-center justify-center text-4xl mb-3">${icon}</div>
+          <div class="text-xs font-semibold text-sky-800 uppercase tracking-wider">Windows OOBE</div>
+        </div>
+        <!-- Right Interactive Side -->
+        <div class="md:col-span-8 p-6 sm:p-8 flex flex-col justify-between">
+          <div>
+            <h2 class="text-xl sm:text-2xl font-semibold text-slate-900 mb-4 leading-snug">${title}</h2>
+            ${contentHtml}
+          </div>
+          <div class="pt-5 mt-4 border-t border-slate-100 flex justify-end">
+            ${footerHtml}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function goOobe(nextSub) {
+  hideFeedback();
+  state.substep = nextSub;
+  renderAll();
+}
+
+function submitOobeRegion() {
+  if (state.oobeRegion !== 'Thailand') {
+    showFeedback('กรุณาเลือกภูมิภาคเป็น Thailand', 'ภารกิจกำหนดให้ตั้งค่า Region เป็น <strong>Thailand</strong> เพื่อให้เวลาและค่าท้องถิ่นถูกต้อง', 'warning');
+    return;
+  }
+  addLog('ตั้งค่า Region: Thailand', 'success');
+  goOobe('kb_primary');
+}
+
+function submitOobeKbPrimary() {
+  if (state.oobeKeyboardPrimary !== 'US') {
+    showFeedback('แนะนำให้เลือกแป้นพิมพ์หลักเป็น US', 'ควรตั้งแป้นพิมพ์หลักเป็น <strong>US</strong> แล้วค่อยเพิ่มแป้นพิมพ์ภาษาไทยเป็น Layout ที่ 2 เพื่อความสะดวกในการพิมพ์รหัสผ่าน', 'warning');
+    return;
+  }
+  addLog('ตั้งค่าแป้นพิมพ์หลัก: US', 'success');
+  goOobe('kb_add_prompt');
+}
+
+function warnSkipThaiKb() {
+  showFeedback('กรุณาเพิ่มแป้นพิมพ์ภาษาไทยด้วย!', 'คลิกปุ่ม <strong>Add layout</strong> เพื่อเพิ่มแป้นพิมพ์ <em>Thai Kedmanee</em> ตามขั้นตอนปฏิบัติงาน', 'warning');
+}
+
+function submitOobeThaiLayout() {
+  if (state.oobeThaiLayout !== 'Thai Kedmanee') {
+    showFeedback('แนะนำให้เลือก Thai Kedmanee', 'แป้นพิมพ์ <strong>Thai Kedmanee</strong> เป็นมาตรฐานที่ใช้กันทั่วไปในประเทศไทย', 'warning');
+    return;
+  }
+  state.oobeAddedThai = true;
+  addLog('เพิ่มแป้นพิมพ์ภาษาไทย: Thai Kedmanee', 'success');
+  goOobe('network');
+}
+
+function selectNoInternet() {
+  addLog("เลือก I don't have internet");
+  goOobe('limited_setup');
+}
+
+function selectLimitedSetup() {
+  addLog('เลือก Continue with limited setup (Local Account)', 'success');
+  goOobe('account_user');
+}
+
+function warnLimitedConnectNow() {
+  showFeedback(
+    'สำหรับการฝึกปฏิบัติ Offline ให้เลือก "Continue with limited setup"',
+    'การกด Connect now จะต้องเชื่อมต่อเครือข่ายและล็อกอิน Microsoft Account กรุณากดปุ่ม <strong>"Continue with limited setup"</strong> ด้านล่างซ้ายเพื่อสร้างบัญชีแบบ Local Account',
+    'warning'
+  );
+}
+
+function warnConnectWifi() {
+  showFeedback(
+    'สำหรับการฝึกปฏิบัติ Offline ให้เลือก "I don\'t have internet"',
+    'การเลือก Wi-Fi จะเข้าสู่การล็อกอิน Microsoft Account ออนไลน์ กรุณากดปุ่ม <strong>"I don\'t have internet"</strong> ด้านล่างซ้ายเพื่อสร้างบัญชีแบบ Local Account',
+    'warning'
+  );
+}
+
+function submitOobeUser() {
+  const val = document.getElementById('oobe-user-input').value.trim();
+  if (!val) {
+    showFeedback('กรุณากรอกชื่อผู้ใช้งาน', 'ชื่อผู้ใช้งาน (User Name) ห้ามเว้นว่าง', 'warning');
+    return;
+  }
+  state.oobeUser = val;
+  addLog(`ตั้งชื่อผู้ใช้งาน: ${val}`, 'success');
+  goOobe('account_pass');
+}
+
+function submitOobePassword() {
+  const p1 = document.getElementById('oobe-pass1').value;
+  const p2 = document.getElementById('oobe-pass2').value;
+  if (!p1) {
+    showFeedback('กรุณาตั้งรหัสผ่าน', 'ตามภารกิจกรุณากำหนดรหัสผ่านเพื่อความปลอดภัยของบัญชีผู้ใช้', 'warning');
+    return;
+  }
+  if (p1 !== p2) {
+    showFeedback('รหัสผ่านทั้งสองช่องไม่ตรงกัน', 'กรุณากรอก Password และ Confirm password ให้ตรงกัน', 'error');
+    return;
+  }
+  state.oobePassword = p1;
+  state.oobePasswordConfirm = p2;
+  addLog('ตั้งค่ารหัสผ่าน Local Account เรียบร้อย', 'success');
+  goOobe('privacy');
+}
+
+function togglePrivacy(key) {
+  state.privacy[key] = !state.privacy[key];
+  renderScreen();
+}
+
+function submitPrivacy() {
+  hideFeedback();
+  addLog('บันทึกการตั้งค่า Privacy Settings', 'success');
+  state.substep = 'preparing';
+  renderAll();
+  const t = setTimeout(() => {
+    state.substep = 'desktop';
+    addLog('ติดตั้ง Windows สำเร็จสมบูรณ์! เข้าสู่หน้า Desktop', 'success');
+    renderAll();
+  }, 2400);
+  activeTimers.push(t);
+}
+
+function renderWindowsDesktop(screen) {
+  const primaries = state.partitions.filter((p) => p.type === 'Primary');
+  const driveC = primaries[0] || { sizeMB: 200000 };
+  const driveD = primaries[1] || { sizeMB: 311500 };
+  const m = String(Math.floor(state.elapsedSec / 60)).padStart(2, '0');
+  const s = String(state.elapsedSec % 60).padStart(2, '0');
+
+  const grade =
+    state.mistakes === 0 ? 'ดีเยี่ยม (A+)' : state.mistakes <= 2 ? 'ดีมาก (A)' : state.mistakes <= 4 ? 'ผ่านเกณฑ์ (B)' : 'ผ่าน (C)';
+
+  screen.innerHTML = `
+    <div class="flex-1 win-desktop-bg relative flex flex-col justify-between overflow-hidden select-none fade-in">
+      <!-- Desktop Icons -->
+      <div class="p-4 space-y-4 w-28">
+        <div onclick="state.desktopThisPcOpen=true; state.desktopStartOpen=false; renderScreen();"
+             class="flex flex-col items-center gap-1 p-2 rounded hover:bg-white/15 cursor-pointer text-center">
+          <div class="text-3xl drop-shadow">🖥️</div>
+          <span class="text-xs text-white drop-shadow font-medium">This PC</span>
+        </div>
+        <div class="flex flex-col items-center gap-1 p-2 rounded hover:bg-white/15 cursor-pointer text-center">
+          <div class="text-3xl drop-shadow">🗑️</div>
+          <span class="text-xs text-white drop-shadow font-medium">Recycle Bin</span>
+        </div>
+        <div onclick="state.summaryDismissed=false; renderScreen();"
+             class="flex flex-col items-center gap-1 p-2 rounded hover:bg-white/15 cursor-pointer text-center">
+          <div class="text-3xl drop-shadow">🏆</div>
+          <span class="text-xs text-white drop-shadow font-medium">สรุปผลการปฏิบัติ</span>
+        </div>
+      </div>
+
+      <!-- This PC Window -->
+      ${
+        state.desktopThisPcOpen
+          ? `
+        <div class="absolute inset-6 sm:inset-12 bg-white text-slate-800 rounded-xl shadow-2xl border border-slate-300 flex flex-col overflow-hidden z-20 fade-in">
+          <div class="bg-slate-100 px-4 py-2 border-b border-slate-200 flex items-center justify-between text-xs font-semibold">
+            <span>🖥️ File Explorer — This PC</span>
+            <button onclick="state.desktopThisPcOpen=false; renderScreen();" class="px-2 py-0.5 rounded hover:bg-rose-500 hover:text-white cursor-pointer">✕</button>
+          </div>
+          <div class="p-5 flex-1 overflow-y-auto">
+            <div class="text-xs font-bold text-slate-500 uppercase mb-3">Devices and drives (2)</div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div class="p-3 rounded-lg border border-slate-200 bg-slate-50 flex items-center gap-3">
+                <div class="text-3xl">💽</div>
+                <div class="flex-1">
+                  <div class="text-sm font-semibold">Local Disk (C:)</div>
+                  <div class="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden my-1">
+                    <div class="h-full bg-sky-500" style="width:14%"></div>
+                  </div>
+                  <div class="text-[11px] text-slate-500">${formatMBtoGB(Math.max(0, driveC.sizeMB - 24576))} free of ${formatMBtoGB(driveC.sizeMB)}</div>
+                </div>
+              </div>
+              <div class="p-3 rounded-lg border border-slate-200 bg-slate-50 flex items-center gap-3">
+                <div class="text-3xl">💾</div>
+                <div class="flex-1">
+                  <div class="text-sm font-semibold">New Volume (D:)</div>
+                  <div class="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden my-1">
+                    <div class="h-full bg-sky-500" style="width:${Math.max(1, Math.round(((driveD.sizeMB - (driveD.freeMB ?? driveD.sizeMB - 120)) / driveD.sizeMB) * 100))}%"></div>
+                  </div>
+                  <div class="text-[11px] text-slate-500">${formatMBtoGB(driveD.freeMB ?? (driveD.sizeMB - 120))} free of ${formatMBtoGB(driveD.sizeMB)}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `
+          : ''
+      }
+
+      <!-- Start Menu -->
+      ${
+        state.desktopStartOpen
+          ? `
+        <div class="absolute bottom-14 left-4 w-72 bg-slate-900/95 backdrop-blur-xl text-white rounded-xl border border-slate-700 p-4 shadow-2xl z-20 fade-in">
+          <div class="text-xs text-slate-400 mb-3">Pinned</div>
+          <div class="grid grid-cols-3 gap-2 text-center text-[11px] mb-4">
+            <div onclick="state.desktopThisPcOpen=true; state.desktopStartOpen=false; renderScreen();" class="p-2 rounded-lg hover:bg-white/10 cursor-pointer">🖥️<br>This PC</div>
+            <div class="p-2 rounded-lg hover:bg-white/10 cursor-pointer">⚙️<br>Settings</div>
+            <div class="p-2 rounded-lg hover:bg-white/10 cursor-pointer">🌐<br>Edge</div>
+          </div>
+          <div class="border-t border-slate-700 pt-2.5 flex items-center justify-between text-xs">
+            <span class="flex items-center gap-2 font-semibold">👤 ${state.oobeUser}</span>
+            <button onclick="confirmReset()" class="px-2 py-1 rounded bg-slate-800 hover:bg-rose-600 text-[11px] cursor-pointer">↺ Reset Lab</button>
+          </div>
+        </div>
+      `
+          : ''
+      }
+
+      <!-- Completion Summary Popup -->
+      ${
+        !state.summaryDismissed
+          ? `
+        <div class="absolute inset-0 bg-black/55 backdrop-blur-[2px] flex items-center justify-center p-4 z-30 fade-in">
+          <div class="bg-slate-900 border border-sky-500/40 rounded-2xl max-w-md w-full p-6 shadow-2xl text-slate-100">
+            <div class="text-center">
+              <div class="w-14 h-14 mx-auto rounded-full bg-emerald-500/20 border border-emerald-400/50 flex items-center justify-center text-3xl mb-3">🎉</div>
+              <h3 class="text-xl font-bold text-white">ติดตั้งระบบปฏิบัติการ Windows สำเร็จ!</h3>
+              <p class="text-xs text-slate-400 mt-1">สรุปผลการปฏิบัติงานครบทั้ง 6 ขั้นตอน</p>
+            </div>
+
+            <div class="mt-4 grid grid-cols-3 gap-2 text-center">
+              <div class="bg-slate-800/80 rounded-xl p-2.5 border border-slate-700">
+                <div class="text-[11px] text-slate-400">เวลาที่ใช้</div>
+                <div class="text-sm font-bold text-sky-400 font-mono">${m}:${s}</div>
+              </div>
+              <div class="bg-slate-800/80 rounded-xl p-2.5 border border-slate-700">
+                <div class="text-[11px] text-slate-400">แจ้งเตือนผิดพลาด</div>
+                <div class="text-sm font-bold text-amber-400 font-mono">${state.mistakes} ครั้ง</div>
+              </div>
+              <div class="bg-slate-800/80 rounded-xl p-2.5 border border-slate-700">
+                <div class="text-[11px] text-slate-400">ประเมินผล</div>
+                <div class="text-xs font-bold text-emerald-400 mt-0.5">${grade}</div>
+              </div>
+            </div>
+
+            <div class="mt-4 bg-slate-800/50 rounded-xl p-3 border border-slate-700/70 text-xs space-y-1.5">
+              <div><span class="text-slate-400">เวอร์ชัน:</span> <strong class="text-white">${state.selectedEdition}</strong></div>
+              <div><span class="text-slate-400">พาร์ทิชัน:</span> <strong class="text-sky-300">C: (${formatMBtoGB(driveC.sizeMB)})</strong> &amp; <strong class="text-sky-300">D: (${formatMBtoGB(driveD.sizeMB)})</strong></div>
+              <div><span class="text-slate-400">ผู้ใช้งาน (Local):</span> <strong class="text-white">${state.oobeUser}</strong></div>
+              <div><span class="text-slate-400">แป้นพิมพ์:</span> <strong class="text-white">US + ${state.oobeThaiLayout}</strong></div>
+            </div>
+
+            <div class="mt-5 flex flex-col sm:flex-row gap-2">
+              <button onclick="resetSimulation()" class="flex-1 py-2.5 px-4 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs sm:text-sm font-bold cursor-pointer transition">
+                ↺ เริ่มทำแบบฝึกหัดใหม่ (Reset Simulation)
+              </button>
+              <button onclick="state.summaryDismissed=true; renderScreen();" class="py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium cursor-pointer">
+                ดูหน้า Desktop
+              </button>
+            </div>
+          </div>
+        </div>
+      `
+          : ''
+      }
+
+      <!-- Windows 11 Taskbar -->
+      <div class="h-11 bg-slate-900/90 backdrop-blur-md border-t border-white/10 px-4 flex items-center justify-between text-white z-20">
+        <div class="w-24"></div>
+        <div class="flex items-center gap-2">
+          <button onclick="state.desktopStartOpen=!state.desktopStartOpen; renderScreen();"
+                  class="w-8 h-8 rounded hover:bg-white/10 flex items-center justify-center cursor-pointer" title="Start">
+            <svg class="w-5 h-5 text-sky-400" viewBox="0 0 24 24" fill="currentColor"><path d="M3 5.5L10.5 4.4V11.5H3V5.5ZM11.5 4.25L21 2.85V11.5H11.5V4.25ZM3 12.5H10.5V19.6L3 18.5V12.5ZM11.5 12.5H21V21.15L11.5 19.75V12.5Z"/></svg>
+          </button>
+          <button onclick="state.desktopThisPcOpen=!state.desktopThisPcOpen; renderScreen();"
+                  class="w-8 h-8 rounded hover:bg-white/10 flex items-center justify-center cursor-pointer text-sm" title="File Explorer">
+            📁
+          </button>
+        </div>
+        <div class="flex items-center gap-3 text-[11px] text-slate-200">
+          <span class="px-1.5 py-0.5 rounded bg-white/10 font-semibold" title="US / Thai Kedmanee">ENG / ไทย</span>
+          <span>🔊</span>
+          <div class="text-right leading-tight">
+            <div>${new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}</div>
+            <div class="text-[10px] text-slate-400">${new Date().toLocaleDateString('th-TH')}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ============================================================================
+// MAIN SCREEN DISPATCHER & KEYBOARD SUPPORT
+// ============================================================================
+function renderScreen() {
+  const screen = document.getElementById('screen-viewport');
+  if (state.stage === 1) renderStage1(screen);
+  else if (state.stage === 2) renderStage2(screen);
+  else if (state.stage === 3) renderStage3(screen);
+  else if (state.stage === 4) renderStage4(screen);
+  else if (state.stage === 5) renderStage5(screen);
+  else if (state.stage === 6) renderStage6(screen);
+}
+
+// Keyboard Handler for Stage 2 (POST & BIOS)
+document.addEventListener('keydown', (e) => {
+  if (state.stage === 2 && state.substep === 'post') {
+    if (e.key === 'F2' || e.key === 'Delete' || e.key === 'F12') {
+      e.preventDefault();
+      enterBiosFromPost();
+    }
+  } else if (state.stage === 2 && state.substep === 'bios') {
+    const tabs = ['Main', 'Advanced', 'Security', 'Boot', 'Exit'];
+    const curTabIdx = tabs.indexOf(state.biosTab);
+
+    if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      selectBiosTab(tabs[(curTabIdx + 1) % tabs.length]);
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      selectBiosTab(tabs[(curTabIdx - 1 + tabs.length) % tabs.length]);
+    } else if (e.key === 'ArrowUp' && state.biosTab === 'Boot') {
+      e.preventDefault();
+      selectBiosItem(Math.max(0, state.biosSelectedIdx - 1));
+    } else if (e.key === 'ArrowDown' && state.biosTab === 'Boot') {
+      e.preventDefault();
+      selectBiosItem(Math.min(state.bootOrder.length - 1, state.biosSelectedIdx + 1));
+    } else if ((e.key === '+' || e.key === '=') && state.biosTab === 'Boot') {
+      e.preventDefault();
+      moveBootItem(state.biosSelectedIdx, -1);
+    } else if (e.key === '-' && state.biosTab === 'Boot') {
+      e.preventDefault();
+      moveBootItem(state.biosSelectedIdx, 1);
+    } else if (e.key === 'F10') {
+      e.preventDefault();
+      openBiosSaveModal();
+    }
+  }
+});
+
+// Boot application
+initState();
+startClockTimer();
+addLog('เริ่มห้องปฏิบัติการ (Stage 1: เตรียมฮาร์ดแวร์)');
+renderAll();
+</script>
+</body>
+</html>
